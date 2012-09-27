@@ -751,3 +751,46 @@ intros H. split.
 apply prop_2_1. assumption.
 Qed.
 
+Lemma SP_bottom {A} (S: sys A) :
+  SP S (er_bottom_rel A).
+Proof.
+intros s1 s2 H. split.
+* intros s [t [Ht Hts]]. subst s. clear H.
+  destruct t as [l Hl]. generalize dependent s1.
+  induction l; intros s1 Hs1.
+  - destruct Hl.
+  - compute in Hs1. subst a.
+    destruct l as [| a' l'].
+    + { exists (View.view (er_bottom_rel A) (trace_one S s2)). split.
+        * apply obs_from_self; auto. reflexivity.
+        * split.
+          - intros s Hs. exists s. split.
+            + destruct s as [[| a' l'] Hl']; [destruct Hl'|].
+              destruct l' as [| a'' l''].
+              compute. tauto.
+              compute in Hs. tauto.
+            + reflexivity.
+          - intros s Hs. exists s. split.
+            + destruct s as [[| a' l'] Hl']; [destruct Hl'|].
+              destruct l' as [| a'' l''].
+              compute. tauto.
+              compute in Hs. tauto.
+            + reflexivity. }
+    + { destruct Hl as [Hs1a' Hl'].
+        specialize (IHl Hl' a').
+        destruct IHl as [v [Hv Ha'l'v]]. reflexivity.
+        destruct Hv as [t [Hv Hts2]]. subst v.
+        exists (View.view (er_bottom_rel A) t). split.
+        * apply obs_from_self; auto.
+        * split.
+          + admit.
+          + admit. }
+* admit.
+Admitted.
+
+Lemma SP_top {A} (S: sys A) :
+  SP S (proj1_sig (er_top A)).
+Proof.
+intros s1 s2 H. rewrite H.
+reflexivity.
+Qed.

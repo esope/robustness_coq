@@ -69,16 +69,39 @@ Proof.
   - eauto.
 Defined.
 
+Definition er_top_rel A : relation A := eq.
+
+Definition er_top A : er A.
+Proof.
+exists (er_top_rel A). intuition.
+Defined.
+
+Instance RelTopPreLattice {A} : TopPreLattice (er A) er_coarser :=
+{ top := er_top A }.
+Proof.
+unfold er_top.
+intros [R E] x y H. simpl in *. rewrite H. reflexivity.
+Defined.
+
+Definition er_bottom_rel A : relation A := fun _ _ => True.
+
+Instance er_bottom_rel_Equivalence A : Equivalence (er_bottom_rel A).
+Proof.
+intuition.
+Qed.
+
+Hint Resolve er_bottom_rel_Equivalence.
+
 Definition er_bottom A : er A.
 Proof.
-exists (fun _ _ => True). intuition.
+exists (er_bottom_rel A). auto.
 Defined.
 
 Instance RelBottomPreLattice {A} : BottomPreLattice (er A) er_coarser :=
 { bottom := er_bottom A }.
 Proof.
 unfold er_bottom.
-intros ? ? ? ?. simpl in *. trivial.
+intros ? ? ? ?. simpl in *. compute. trivial.
 Defined.
 
 Module FAMILY.
