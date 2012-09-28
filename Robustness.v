@@ -315,11 +315,6 @@ induction H12.
 * split. apply next_refl. auto.
 Qed.
 
-
-
-
-
-
 End Stutter.
 
 Definition set_included {A} (R: relation A) (S1 S2: A -> Prop) :=
@@ -751,42 +746,121 @@ intros H. split.
 apply prop_2_1. assumption.
 Qed.
 
+(* Auxiliary lemmas for SP_bottom *)
+Module SP_bottom_aux.
+
+Lemma view_bottom {A} :
+  forall (l1 l2: list A),
+    View.same_view (er_bottom_rel A) l1 l2 <-> length l1 = length l2.
+Proof.
+intros l1 l2.
+rewrite View.same_view_characterization. split.
+* intros [? _]; assumption.
+* intros H. split; trivial.
+  intros a n H1 H2. compute. trivial.
+Qed.
+
+Lemma view_bottom_trace {A} {S: sys A} :
+  forall (t1 t2: trace S),
+    View.view (er_bottom_rel A) t1 t2
+    <-> length (proj1_sig t1) = length (proj1_sig t2).
+Proof.
+intros [l1 Hl1] [l2 Hl2].
+apply view_bottom.
+Qed.
+
+Fixpoint repeat {A} (a: A) (n: nat) : list A :=
+match n with
+| O => nil
+| S n => a :: repeat a n
+end.
+
+Lemma repeat_length {A} :
+  forall (a: A) n, length (repeat a n) = n.
+Proof.
+intros a n. induction n; simpl in *; auto.
+Qed.
+
+Lemma is_trace_repeat {A} {S: sys A} :
+  forall a n, is_trace S (a :: repeat a n).
+Proof.
+intros a n. induction n; simpl.
+* trivial.
+* split.
+  + apply next_refl.
+  + destruct n; simpl in *.
+    - trivial.
+    - destruct IHn. split. apply next_refl. assumption.
+Qed.
+
+Lemma stutter_equiv_repeat {A} :
+  forall (a: A) n,
+    Stutter.stutter_equiv (a :: nil) (a :: repeat a n).
+Proof.
+intros a n. induction n; simpl.
+* reflexivity.
+* auto.
+Qed.
+
+Lemma stutter_repeat {A} {S: sys A} :
+  forall (a: A) n,
+    stutter (trace_one S a) (exist _ _ (is_trace_repeat a n)).
+Proof.
+intros a n. apply stutter_equiv_repeat.
+Qed.
+
+Lemma replicate_trace_bottom {A} {S: sys A} :
+  forall a (t: trace S),
+    exists (t': trace S),
+      is_trace_from t' a
+      /\ View.view (er_bottom_rel A) t t'
+      /\ stutter (trace_one S a) t'.
+Proof.
+intros a t.
+exists (exist _ _ (is_trace_repeat a (length (proj1_sig t) - 1))).
+split.
+* reflexivity.
+* split.
+  + rewrite view_bottom_trace. simpl. rewrite repeat_length.
+    destruct t as [[| b l] Hl]; [destruct Hl |].
+    simpl. omega.
+  + apply stutter_repeat.
+Qed.
+
+Lemma set_included_obs_from_bottom {A} {S: sys A}:
+  forall s1 s2,
+    set_included (set_equiv stutter)
+                 (obs_from s1 S (er_bottom_rel A))
+                 (obs_from s2 S (er_bottom_rel A)).
+Proof.
+intros s1 s2 v Hv.
+destruct Hv as [t [Hv Hts1]]. subst v.
+destruct (replicate_trace_bottom s2 t) as [t' [Ht's2 [Htt' Ht']]].
+exists (View.view (er_bottom_rel A) t'). split.
+* apply obs_from_self; auto.
+* split.
+  + intros t0 Htt0. exists t0. split.
+    transitivity t. symmetry; assumption. assumption.
+    reflexivity.
+  + intros t0 Ht't0. exists t0. split.
+    transitivity t'. assumption. assumption.
+    reflexivity.
+Qed.
+
+Lemma obs_eq_bottom {A} {S: sys A}:
+  forall s1 s2,
+    obs_eq S (er_bottom_rel A) s1 s2.
+Proof.
+intros s1 s2. split; auto using set_included_obs_from_bottom.
+Qed.
+
+End SP_bottom_aux.
+
 Lemma SP_bottom {A} (S: sys A) :
   SP S (er_bottom_rel A).
 Proof.
-intros s1 s2 H. split.
-* intros s [t [Ht Hts]]. subst s. clear H.
-  destruct t as [l Hl]. generalize dependent s1.
-  induction l; intros s1 Hs1.
-  - destruct Hl.
-  - compute in Hs1. subst a.
-    destruct l as [| a' l'].
-    + { exists (View.view (er_bottom_rel A) (trace_one S s2)). split.
-        * apply obs_from_self; auto. reflexivity.
-        * split.
-          - intros s Hs. exists s. split.
-            + destruct s as [[| a' l'] Hl']; [destruct Hl'|].
-              destruct l' as [| a'' l''].
-              compute. tauto.
-              compute in Hs. tauto.
-            + reflexivity.
-          - intros s Hs. exists s. split.
-            + destruct s as [[| a' l'] Hl']; [destruct Hl'|].
-              destruct l' as [| a'' l''].
-              compute. tauto.
-              compute in Hs. tauto.
-            + reflexivity. }
-    + { destruct Hl as [Hs1a' Hl'].
-        specialize (IHl Hl' a').
-        destruct IHl as [v [Hv Ha'l'v]]. reflexivity.
-        destruct Hv as [t [Hv Hts2]]. subst v.
-        exists (View.view (er_bottom_rel A) t). split.
-        * apply obs_from_self; auto.
-        * split.
-          + admit.
-          + admit. }
-* admit.
-Admitted.
+intros s1 s2 H. apply SP_bottom_aux.obs_eq_bottom.
+Qed.
 
 Lemma SP_top {A} (S: sys A) :
   SP S (proj1_sig (er_top A)).
