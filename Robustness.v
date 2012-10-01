@@ -68,6 +68,28 @@ end.
 Definition is_trace_from {A} {S: sys A} (tr: trace S) (s : A) : Prop :=
   hd tr = s.
 
+
+Definition trace_cons {A} {S: sys A}
+           (s : A) (t : trace S) (H: next S s (hd t)) : trace S.
+Proof.
+destruct t as [l Hl].
+assert (is_trace S (s :: l)) as Htrace.
+{ destruct l as [| s' l].
+  + destruct Hl.
+  + split. exact H. exact Hl. }
+exact (exist _ _ Htrace).
+Defined.
+
+Lemma trace_cons_is_trace_from {A} {S: sys A}:
+  forall (s : A) (t : trace S) (H: next S s (hd t)),
+    is_trace_from (trace_cons s t H) s.
+Proof.
+intros s t H.
+destruct t as [[| a l] Hl].
+destruct Hl.
+reflexivity.
+Qed.
+
 (* lifts a binary function from lists to traces *)
 Definition lift_trace {A B} {S: sys A}
            (f: list A -> list A -> B) (t1 t2: trace S) : B :=
@@ -315,6 +337,143 @@ induction H12.
 * split. apply next_refl. auto.
 Qed.
 
+(* Lemma stutter_equiv_cons2_left_inv {A} : *)
+(*   forall (a1 a1' a2: A) (l1 l2: list A), *)
+(*     a1 <> a2 -> *)
+(*     stutter_equiv (a1 :: a1' :: l1) (a2 :: l2) -> *)
+(*     a1 = a2 *)
+(*     /\ exists l2', l2 = a1' :: l2'. *)
+(*                    /\ stutter_equiv (a1' :: l1) (a1' :: l2'). *)
+(* Proof. *)
+(* intros a1 a1' a2 l1 l2 Hneq H. *)
+(* remember *)
+
+
+Fixpoint repeat {A} (a: A) (n: nat) : list A :=
+match n with
+| O => nil
+| S n => a :: repeat a n
+end.
+
+Lemma repeat_length {A} :
+  forall (a: A) n, length (repeat a n) = n.
+Proof.
+intros a n. induction n; simpl in *; auto.
+Qed.
+
+Lemma is_trace_repeat {A} {S: sys A} :
+  forall a n, is_trace S (a :: repeat a n).
+Proof.
+intros a n. induction n; simpl.
+* trivial.
+* split.
+  + apply next_refl.
+  + destruct n; simpl in *.
+    - trivial.
+    - destruct IHn. split. apply next_refl. assumption.
+Qed.
+
+Lemma is_trace_repeat_prefix {A} {S: sys A} :
+  forall (t: trace S) a n,
+    next S a (hd t) ->
+    is_trace S (a :: repeat a n ++ proj1_sig t).
+Proof.
+intros t a n H. induction n.
+* destruct t as [[| b l] Hl]; [destruct Hl |]. simpl. split.
+  + assumption.
+  + destruct l; trivial.
+* destruct t as [[| b l] Hl]; [destruct Hl |].
+  simpl proj1_sig in *. simpl in H.
+  unfold repeat. fold (repeat a n). split.
+  + apply next_refl.
+  + rewrite <- app_comm_cons. assumption.
+Qed.
+
+Lemma is_trace_repeat_two {A} {S: sys A} :
+  forall a b n m,
+    next S a b ->
+    is_trace S (a :: repeat a n ++ b :: repeat b m).
+Proof.
+intros a b n m H.
+pose proof (@is_trace_repeat _ S b m) as Htrace.
+pose (t := exist _ _ Htrace).
+replace (b :: repeat b m) with (proj1_sig t) by reflexivity.
+apply is_trace_repeat_prefix. assumption.
+Qed.
+
+Lemma stutter_equiv_repeat {A} :
+  forall (a: A) n,
+    Stutter.stutter_equiv (a :: nil) (a :: repeat a n).
+Proof.
+intros a n. induction n; simpl.
+* reflexivity.
+* auto.
+Qed.
+
+Lemma In_nth {A} :
+  forall a (l: list A),
+    In a l -> exists n, n < length l /\ forall b, nth n l b = a.
+Proof.
+intros a l H. generalize dependent a. induction l; intros a' H'.
+* destruct H'.
+* destruct H'.
+  + subst a'. exists 0. split.
+    - simpl. omega.
+    - intros b. reflexivity.
+  + destruct (IHl a' H) as [n [Hn Hnth]].
+    exists (S n). split.
+    - simpl. omega.
+    - intros b. simpl. auto.
+Qed.
+
+Lemma repeat_nth {A} :
+  forall (a a0 : A) k n,
+    k < n ->
+    nth k (repeat a n) a0 = a.
+Proof.
+intros a a0 k n H.
+generalize dependent k. revert a. induction n; intros a k H.
+* exfalso. omega.
+* simpl. destruct k.
+  + trivial.
+  + apply IHn. omega.
+Qed.
+
+Lemma stutter_one_inv {A} :
+  forall a (l: list A),
+    stutter_equiv l (a :: nil) ->
+    exists n, l = a :: repeat a n.
+Proof.
+intros a l H. induction l.
+* apply stutter_equiv_nil_left_inv in H. congruence.
+* assert (a0 = a). { apply stutter_equiv_cons_inv in H. assumption. }
+  subst a0. inversion H; subst.
+  + exists 0. apply stutter_equiv_nil_right_inv in H1. subst. reflexivity.
+  + destruct IHl as [n Heq]; trivial.
+    exists (S n). rewrite Heq. reflexivity.
+Qed.
+
+Lemma stutter_two_inv {A} :
+  forall a1 a2 (l: list A),
+    a1 <> a2 ->
+    stutter_equiv l (a1 :: a2 :: nil) ->
+    exists n1 n2, l = a1 :: repeat a1 n1 ++ a2 :: repeat a2 n2.
+Proof.
+intros a1 a2 l Ha Hl. induction l.
+* apply stutter_equiv_nil_left_inv in Hl. congruence.
+* assert (a = a1). { apply stutter_equiv_cons_inv in Hl. assumption. }
+  subst a. destruct l as [| a l].
+  + inversion Hl; subst.
+    - apply stutter_equiv_nil_left_inv in H0. congruence.
+    - congruence.
+  + inversion Hl; subst.
+    - destruct (stutter_one_inv _ _ H0) as [n2 Hn2].
+      exists 0. exists n2. simpl. congruence.
+    - destruct IHl as [n1 [n2 Heq]]; trivial.
+      exists (S n1). exists n2. simpl. congruence.
+    - congruence.
+Qed.
+
 End Stutter.
 
 Definition set_included {A} (R: relation A) (S1 S2: A -> Prop) :=
@@ -345,6 +504,13 @@ Defined.
 
 Definition stutter {A} {S: sys A} (t1 t2: trace S) : Prop :=
   lift_trace Stutter.stutter_equiv t1 t2.
+
+Lemma stutter_repeat {A} {S: sys A} :
+  forall (a: A) n,
+    stutter (trace_one S a) (exist _ _ (Stutter.is_trace_repeat a n)).
+Proof.
+intros a n. apply Stutter.stutter_equiv_repeat.
+Qed.
 
 Definition set_stutter {A} {S: sys A} := set_equiv (@stutter A S).
 
@@ -622,6 +788,7 @@ intro l. induction l; intros a1 a2 Ha1a2 Hl.
   - split; assumption.
 Qed.
 
+(*
 Lemma test_included {A} {S: sys A} (R: relation A) {E: Equivalence R} :
   forall (c: trace S -> Prop) (t1 t2: trace S),
     set_included stutter (view R t1) c ->
@@ -635,6 +802,66 @@ destruct (Hct2 t1' Hct1') as [t2' [Ht2t2' Ht1't2']].
 exists t1'. split.
 + transitivity t2'. assumption. symmetry. assumption.
 + assumption.
+Qed.
+*)
+
+Lemma repeat_same_view {A} (R: relation A) {E: Equivalence R}:
+  forall a1 a2 (l: list A),
+    Stutter.stutter_equiv l (a1 :: nil) ->
+    R a1 a2 ->
+    same_view R l (Stutter.repeat a2 (length l)).
+Proof.
+intros a1 a2 l Hl HR.
+rewrite same_view_characterization. split.
+* symmetry. apply Stutter.repeat_length.
+* intros a n H1 H2.
+  rewrite Stutter.repeat_nth; trivial.
+  destruct (Stutter.stutter_one_inv _ _ Hl) as [m Heq].
+  assert (l = Stutter.repeat a1 (S m)) as Hlm by assumption.
+  assert (length l = S m). { rewrite Hlm. apply Stutter.repeat_length. }
+  rewrite Hlm.
+  rewrite Stutter.repeat_nth; trivial.
+  omega.
+Qed.
+
+Lemma repeat_two_same_view {A} (R: relation A) {E: Equivalence R}:
+  forall a1 a2 a1' a2' n1 n2,
+    R a1 a1' ->
+    R a2 a2' ->
+    View.same_view
+      R
+      (Stutter.repeat a1  n1 ++ a2  :: Stutter.repeat a2  n2)
+      (Stutter.repeat a1' n1 ++ a2' :: Stutter.repeat a2' n2).
+Proof.
+intros a1 a2 a1' a2' n1 n2 H1 H2. induction n1.
+* simpl. split; trivial.
+  clear a1 a1' H1. induction n2.
+  + simpl. trivial.
+  + simpl. split; assumption.
+* simpl. split; assumption.
+Qed.
+
+Lemma included_view_R {A} {S: sys A} (R: relation A) {E: Equivalence R}:
+  forall (t1 t2: trace S),
+    set_included stutter (View.view R t1) (View.view R t2) ->
+    forall s1,
+      In s1 (proj1_sig t1) ->
+      exists s2, In s2 (proj1_sig t2) /\ R s1 s2.
+Proof.
+intros t1 t2 Ht1t2 s1 Hs1t1.
+specialize (Ht1t2 t1).
+destruct Ht1t2 as [t2' [Ht2t2' Ht1t2']]. reflexivity.
+destruct t2 as [l2 Hl2]. destruct t2' as [l2' Hl2'].
+unfold view in Ht2t2'. unfold same_view_trace in Ht2t2'.
+unfold lift_trace in Ht2t2'. simpl in *.
+rewrite same_view_characterization in Ht2t2'.
+destruct Ht2t2' as [Hlength Ht2t2'].
+pose proof (Stutter.stutter_equiv_in _ _ Ht1t2' s1 Hs1t1) as Hs1t2'.
+simpl in *.
+pose proof (Stutter.In_nth _ _ Hs1t2') as [n [Hn Hs1]].
+exists (nth n l2 s1). split.
+* apply nth_In. congruence.
+* rewrite <- (Hs1 s1) at 1. symmetry. apply Ht2t2'; congruence.
 Qed.
 
 End View.
@@ -722,8 +949,10 @@ split; intro H.
     exists (View.view R t1). auto using obs_from_self.
 Qed.
 
-Lemma prop_2_1 {A} (S: sys A) (R: relation A) {E: Equivalence R} :
-  leq (toER R) (toER (obs_eq S R)).
+Lemma obs_eq_R {A} {S: sys A} {R: relation A} {E: Equivalence R}:
+  forall s s' : A,
+    obs_eq S R s s' ->
+    R s s'.
 Proof.
 intros s1 s2 [H12 _]. simpl.
 specialize (H12 (View.view R (trace_one S s1))).
@@ -737,6 +966,12 @@ compute in Hts2. subst s.
 destruct (Stutter.stutter_equiv_cons_left_inv _ _ _ Ht1t2) as [l' ?].
 destruct t2 as [l2 ?]. simpl in H. subst.
 destruct Htt2. symmetry. assumption.
+Qed.
+
+Lemma prop_2_1 {A} (S: sys A) (R: relation A) {E: Equivalence R} :
+  leq (toER R) (toER (obs_eq S R)).
+Proof.
+exact (@obs_eq_R A S R E).
 Qed.
 
 Lemma corollary_2_1 {A} (S: sys A) (R: relation A) {E: Equivalence R} :
@@ -769,46 +1004,6 @@ intros [l1 Hl1] [l2 Hl2].
 apply view_bottom.
 Qed.
 
-Fixpoint repeat {A} (a: A) (n: nat) : list A :=
-match n with
-| O => nil
-| S n => a :: repeat a n
-end.
-
-Lemma repeat_length {A} :
-  forall (a: A) n, length (repeat a n) = n.
-Proof.
-intros a n. induction n; simpl in *; auto.
-Qed.
-
-Lemma is_trace_repeat {A} {S: sys A} :
-  forall a n, is_trace S (a :: repeat a n).
-Proof.
-intros a n. induction n; simpl.
-* trivial.
-* split.
-  + apply next_refl.
-  + destruct n; simpl in *.
-    - trivial.
-    - destruct IHn. split. apply next_refl. assumption.
-Qed.
-
-Lemma stutter_equiv_repeat {A} :
-  forall (a: A) n,
-    Stutter.stutter_equiv (a :: nil) (a :: repeat a n).
-Proof.
-intros a n. induction n; simpl.
-* reflexivity.
-* auto.
-Qed.
-
-Lemma stutter_repeat {A} {S: sys A} :
-  forall (a: A) n,
-    stutter (trace_one S a) (exist _ _ (is_trace_repeat a n)).
-Proof.
-intros a n. apply stutter_equiv_repeat.
-Qed.
-
 Lemma replicate_trace_bottom {A} {S: sys A} :
   forall a (t: trace S),
     exists (t': trace S),
@@ -817,11 +1012,11 @@ Lemma replicate_trace_bottom {A} {S: sys A} :
       /\ stutter (trace_one S a) t'.
 Proof.
 intros a t.
-exists (exist _ _ (is_trace_repeat a (length (proj1_sig t) - 1))).
+exists (exist _ _ (Stutter.is_trace_repeat a (length (proj1_sig t) - 1))).
 split.
 * reflexivity.
 * split.
-  + rewrite view_bottom_trace. simpl. rewrite repeat_length.
+  + rewrite view_bottom_trace. simpl. rewrite Stutter.repeat_length.
     destruct t as [[| b l] Hl]; [destruct Hl |].
     simpl. omega.
   + apply stutter_repeat.
@@ -868,3 +1063,392 @@ Proof.
 intros s1 s2 H. rewrite H.
 reflexivity.
 Qed.
+
+(* TODO: Declassification set D, at the end of section 2.3 *)
+
+Module Example. (* Section 3 *)
+
+Require Import Bool.
+
+Record state :=
+{ time : bool
+; high : bool
+; password : bool
+; query : bool
+; result : bool
+}.
+
+Lemma eq_state_dec : forall (s1 s2: state), {s1 = s2} + {s1 <> s2}.
+Proof.
+intros [t1 h1 p1 q1 r1] [t2 h2 p2 q2 r2].
+destruct (bool_dec t1 t2); [| right; congruence].
+destruct (bool_dec h1 h2); [| right; congruence].
+destruct (bool_dec p1 p2); [| right; congruence].
+destruct (bool_dec q1 q2); [| right; congruence].
+destruct (bool_dec r1 r2); [| right; congruence].
+left. congruence.
+Defined.
+
+(* The step function of the system *)
+Definition step (s: state) : state :=
+if time s
+then s
+else
+{| time := true;
+   high := high s;
+   password := password s;
+   query := query s;
+   result := if bool_dec (password s) (query s)
+            then negb (result s)
+            else result s
+|}.
+
+(* The relation that describes the execution of the system. *)
+Definition exec : relation state :=
+  fun s1 s2 => s2 = s1 \/ s2 = step s1.
+
+Lemma exec_refl : forall s, exec s s.
+Proof.
+intro s. left. reflexivity.
+Qed.
+
+Definition password_checker : sys state :=
+  {| next := exec; next_refl := exec_refl |}.
+
+(* The observation that the observer is interested in. *)
+Definition R : relation state :=
+  fun s s' =>
+    time s = time s' /\ query s = query s' /\ result s = result s'.
+
+Instance R_Equivalence : Equivalence R.
+Proof.
+unfold R. constructor.
+* intro s. intuition.
+* intros s1 s2 H. intuition.
+* intros s1 s2 s3 H12 H23. simpl in *. intuition; eauto.
+Qed.
+Hint Resolve R_Equivalence.
+
+(* For the following lemma, it is crucial that password and query
+   are booleans. *)
+Lemma time_false_R_step_password :
+  forall s1 s2 : state,
+    time s1 = false ->
+    R s1 s2 ->
+    R (step s1) (step s2) ->
+    password s1 = password s2.
+Proof.
+intros s1 s2 Hfalse H H'.
+destruct H as [Ht [Hq Hr]].
+unfold step in H'.
+rewrite <- Ht in H'. clear Ht.
+rewrite <- Hq in H'. clear Hq.
+rewrite <- Hr in H'. clear Hr.
+rewrite Hfalse in H'. clear Hfalse.
+destruct H' as [Ht [Hq Hr]]. simpl in *.
+clear Ht Hq.
+destruct (bool_dec (password s1) (query s1));
+  destruct (bool_dec (password s2) (query s1)).
+* congruence.
+* exfalso. destruct (result s1); simpl in Hr; congruence.
+* exfalso. destruct (result s1); simpl in Hr; congruence.
+* destruct (query s1); destruct (password s1);
+  destruct (password s2); congruence.
+Qed.
+
+Lemma step_time_false_neq :
+  forall s,
+    time s = false ->
+    s <> step s.
+Proof.
+intros s H. unfold step.
+destruct s as [t h p q r]. simpl in *.
+subst t.
+congruence.
+Qed.
+
+Lemma step_time_true_eq :
+  forall s,
+    time s = true ->
+    s = step s.
+Proof.
+intros s H. unfold step.
+destruct s as [t h p q r]. simpl in *.
+subst t.
+reflexivity.
+Qed.
+
+Lemma R_step_time_false :
+  forall s s',
+    R s s' ->
+    time s = false ->
+    (time s = false -> password s = password s') ->
+    R (step s) (step s').
+Proof.
+intros s s' HR Hfalse Hpassword.
+destruct s  as [t  h  p  q  r].
+destruct s' as [t' h' p' q' r'].
+unfold step in *. simpl in *.
+subst t.
+destruct HR as [Htime [Hquery Hresult]].
+simpl in *.
+rewrite <- Htime.
+split.
+* reflexivity.
+* split.
+  + assumption.
+  + specialize (Hpassword eq_refl). subst. reflexivity.
+Qed.
+
+Lemma time_false_not_R_step :
+  forall s,
+    time s = false ->
+    ~ R s (step s).
+Proof.
+intros s Hfalse HR.
+unfold step in *. rewrite Hfalse in HR.
+destruct s as [t h p q r].
+destruct HR as [Ht [Hq Hr]].
+simpl in *.
+congruence.
+Qed.
+
+Lemma step_projection :
+  forall s, step s = step (step s).
+Proof.
+intros [t h p q r].
+destruct t; unfold step; simpl.
++ reflexivity.
++ f_equal.
+Qed.
+
+Definition trace_step (s : state) : trace password_checker.
+Proof.
+refine (trace_cons s (trace_one password_checker (step s)) _).
+* right. reflexivity.
+Defined.
+
+Lemma stutter_password_checker :
+  forall t : trace password_checker,
+    stutter t (trace_one password_checker (hd t))
+    \/ stutter t (trace_step (hd t)).
+Proof.
+intros [l Hl]. induction l.
+* destruct Hl.
+* destruct l as [| b l].
+  - clear IHl. left. unfold trace_one. simpl.
+    unfold stutter. unfold lift_trace. reflexivity.
+  - simpl. destruct Hl as [Hab Hbl].
+    specialize (IHl Hbl). destruct IHl as [IHl | IHl].
+    + { simpl in IHl. destruct Hab as [Hab | Hab]; subst b.
+        * left. apply Stutter.stutter_left. assumption.
+        * right. apply Stutter.stutter_same. assumption.
+      }
+    + { simpl in IHl. destruct Hab as [Hab | Hab]; subst b.
+        * right. apply Stutter.stutter_left. assumption.
+        * right. apply Stutter.stutter_same.
+          transitivity (step a :: step (step a) :: nil).
+          + assumption.
+          + rewrite <- step_projection.
+            apply Stutter.stutter_left. reflexivity.
+      }
+Qed.
+
+Lemma time_false_obs_password :
+  forall s s': state,
+    obs_eq password_checker R s s' ->
+    time s = false ->
+    R s s' ->
+    password s = password s'.
+Proof.
+intros s s' Hobs Hfalse HR.
+apply time_false_R_step_password; trivial.
+destruct s  as [t  h  p  q  r].
+destruct s' as [t' h' p' q' r'].
+destruct HR as [Htime [Hquery Hresult]].
+simpl in *. subst.
+rewrite <- Htime in *. clear Htime. unfold step. simpl.
+split. reflexivity.
+split. reflexivity.
+simpl. destruct (bool_dec p p').
+* subst. reflexivity.
+* exfalso. apply n. clear n.
+  pose (s := {|
+              time := false;
+              high := h;
+              password := p;
+              query := q';
+              result := r' |}). fold s in Hobs.
+  pose (s' := {|
+               time := false;
+               high := h';
+               password := p';
+               query := q';
+               result := r' |}). fold s' in Hobs.
+  destruct Hobs as [Hss' Hs's].
+  assert (is_trace password_checker (s :: step s :: nil)) as Htrace.
+  { split. right; reflexivity. compute; trivial. }
+  pose (t := exist _ _ Htrace).
+  specialize (Hss' (View.view R t)).
+  destruct Hss' as [v' [[t0' [Hv' Ht0's']] Htt0']].
+  { exists t. split; reflexivity. }
+  subst v'.
+  specialize (Hs's (View.view R t0')).
+  destruct Hs's as [v [[t0 [Hv Ht0s]] Ht0't0]].
+  { exists t0'. split. reflexivity. assumption. }
+  subst v.
+  assert (In (step s') (proj1_sig t0')).
+  { destruct (stutter_password_checker t0') as [H | H].
+    * exfalso.
+      eapply (time_false_not_R_step s); trivial.
+      admit.
+    * admit.
+  }
+  assert (R (step s') s \/ R (step s') (step s)) as [? | ?].
+  { admit. }
+  + destruct H0 as [H0 _].
+    unfold s' in H0; unfold step in H0; simpl in H0. congruence.
+  + destruct H0 as [_ [ _ H0]].
+    unfold s' in H0; unfold step in H0; simpl in H0.
+    destruct (bool_dec p' q'); destruct (bool_dec p q').
+    - congruence.
+    - destruct r'; simpl in H0; congruence.
+    - destruct r'; simpl in H0; congruence.
+    - destruct p; destruct p'; destruct q'; try congruence.
+Admitted.
+
+Lemma stutter_one_stutter_view {A} {S: sys A} {R: relation A} {E: Equivalence R}:
+  forall (s s' : A) (l : list A),
+    R s s' ->
+    forall (Hl: is_trace S (s :: l)),
+    stutter (exist _ (s :: l) Hl) (trace_one S s) ->
+    exists s2 : trace S -> Prop,
+      obs_from s' S R s2 /\
+      set_equiv stutter (View.view R (exist _ (s :: l) Hl)) s2.
+Proof.
+intros s s' l HR Hl Hstutter.
+pose (t' := exist _ _
+            (@Stutter.is_trace_repeat _ S s' (length l))).
+exists (View.view R t'). split.
+* exists t'. split; reflexivity.
+* assert (stutter (trace_one S s') t')
+    by apply stutter_repeat.
+  split.
+  - intros t0 Htt0. exists t0. split.
+    + transitivity (exist _ _ Hl); try assumption.
+      symmetry. unfold t'.
+      unfold View.view. unfold View.same_view_trace.
+      unfold lift_trace. simpl proj1_sig.
+      apply (View.repeat_same_view R s s'); trivial.
+    + reflexivity.
+  - intros t0 Htt0. exists t0. split.
+    + transitivity t'; try assumption.
+      unfold t'.
+      unfold View.view. unfold View.same_view_trace.
+      unfold lift_trace. simpl proj1_sig.
+      apply (View.repeat_same_view R s s'); trivial.
+    + reflexivity.
+Qed.
+
+Lemma R_included_obs:
+  forall (s s': state),
+    R s s' ->
+    R (step s) (step s') ->
+    set_included (set_equiv stutter)
+                 (obs_from s password_checker R)
+                 (obs_from s' password_checker R).
+Proof.
+intros s s' HR HR'.
+intros v [t [Hv Hts]]. subst v.
+destruct (stutter_password_checker t) as [H | H].
+- destruct t as [[| a l] Hl]; [destruct Hl |].
+  compute in Hts. subst a. simpl in H.
+  apply stutter_one_stutter_view; trivial.
+- destruct t as [[| a l] Hl]; [destruct Hl |].
+  compute in Hts. subst a.
+  simpl in H.
+  unfold trace_step in H. unfold trace_one in H. unfold trace_cons in H.
+  unfold stutter in H. unfold lift_trace in H. simpl in H.
+  { case_eq (time s); intro Htime'.
+    * pose proof (step_time_true_eq _ Htime') as Hstep.
+      rewrite <- Hstep in H. clear Hstep.
+      assert (Stutter.stutter_equiv (s :: l) (s :: nil)) as H'.
+      { transitivity (s :: s :: nil). assumption. auto. }
+      clear H. apply stutter_one_stutter_view; trivial.
+    * pose proof (step_time_false_neq _ Htime') as Hstep.
+      destruct (Stutter.stutter_two_inv _ _ _ Hstep H) as [n1 [n2 Heq]].
+      clear Hstep.
+      pose (l' :=
+              s' :: Stutter.repeat s' n1
+              ++ step s' :: Stutter.repeat (step s') n2).
+      assert (is_trace password_checker l') as Htrace'.
+      { apply Stutter.is_trace_repeat_two. right; reflexivity. }
+      pose (t' := exist _ _ Htrace').
+      exists (View.view R t'). split.
+      + exists t'. split; reflexivity.
+      + split.
+        - intros t0 Ht0. exists t0.
+          { split.
+            * transitivity (exist _ _ Hl); trivial.
+              symmetry.
+              unfold t'. unfold View.view. unfold View.same_view_trace.
+              unfold lift_trace. simpl.
+              split; trivial.
+              inversion Heq; subst.
+              apply View.repeat_two_same_view; trivial.
+            * reflexivity.
+          }
+        - intros t0 Ht0. exists t0.
+          { split.
+            * transitivity t'; trivial.
+              unfold t'. unfold View.view. unfold View.same_view_trace.
+              unfold lift_trace. simpl.
+              split; trivial.
+              inversion Heq; subst.
+              apply View.repeat_two_same_view; trivial.
+            * reflexivity.
+          }
+  }
+Qed.
+
+Lemma R_time_included_obs:
+  forall (s s': state),
+    R s s' ->
+    (time s = false -> password s = password s') ->
+    set_included (set_equiv stutter)
+                 (obs_from s password_checker R)
+                 (obs_from s' password_checker R).
+Proof.
+intros s s' HR Htime.
+apply R_included_obs; trivial.
+case_eq (time s); intro H.
+* repeat rewrite <- step_time_true_eq; trivial.
+  destruct HR as [Ht _]. congruence.
+* apply R_step_time_false; trivial.
+Qed.
+
+Lemma obs_eq_iff :
+  forall s s',
+    obs_eq password_checker R s s'
+    <->
+    (time s = time s' /\ query s = query s' /\ result s = result s'
+     /\ (time s = false -> password s = password s')).
+Proof.
+intros s s'. split.
+* intro Hobs_eq.
+  cut (R s s' /\ (R s s' -> time s = false -> password s = password s')).
+  + intros [? ?]. unfold R in *. intuition.
+  + split.
+    - apply (obs_eq_R _ _ Hobs_eq).
+    - intros Hr Hfalse. apply time_false_obs_password; auto.
+* intro H.
+  assert (R s s' /\ (time s = false -> password s = password s'))
+    as [HR Htime]. { unfold R. intuition. }
+  clear H. split.
+  + apply R_time_included_obs; trivial.
+  + apply R_time_included_obs; trivial.
+    - symmetry. trivial.
+    - intro H. symmetry. apply Htime. destruct HR as [Ht _]. congruence.
+Qed.
+
+End Example.
