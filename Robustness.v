@@ -654,6 +654,22 @@ intros l1 l2. split; intro H.
   apply nth_same_view; assumption.
 Qed.
 
+Lemma same_view_in {A} {R: relation A}:
+  forall a1 l1 l2,
+    In a1 l1 ->
+    same_view R l1 l2 ->
+    exists a2, In a2 l2 /\ R a1 a2.
+Proof.
+intros a1 l1 l2 Ha1 H.
+rewrite same_view_characterization in H.
+destruct H as [Hlength HR].
+destruct (Stutter.In_nth _ _ Ha1) as [n [Hn Hna1]].
+exists (nth n l2 a1). split.
+apply nth_In. congruence.
+rewrite <- (Hna1 a1) at 1.
+apply HR; congruence.
+Qed.
+
 Definition same_view_trace {A} {S: sys A} (R: relation A) (t1 t2: trace S) :=
   lift_trace (same_view R) t1 t2.
 
@@ -854,14 +870,9 @@ destruct Ht1t2 as [t2' [Ht2t2' Ht1t2']]. reflexivity.
 destruct t2 as [l2 Hl2]. destruct t2' as [l2' Hl2'].
 unfold view in Ht2t2'. unfold same_view_trace in Ht2t2'.
 unfold lift_trace in Ht2t2'. simpl in *.
-rewrite same_view_characterization in Ht2t2'.
-destruct Ht2t2' as [Hlength Ht2t2'].
-pose proof (Stutter.stutter_equiv_in _ _ Ht1t2' s1 Hs1t1) as Hs1t2'.
-simpl in *.
-pose proof (Stutter.In_nth _ _ Hs1t2') as [n [Hn Hs1]].
-exists (nth n l2 s1). split.
-* apply nth_In. congruence.
-* rewrite <- (Hs1 s1) at 1. symmetry. apply Ht2t2'; congruence.
+apply (View.same_view_in _ l2').
+apply (Stutter.stutter_equiv_in _ _ Ht1t2' s1 Hs1t1).
+symmetry. assumption.
 Qed.
 
 End View.
@@ -1293,19 +1304,45 @@ simpl. destruct (bool_dec p p').
   destruct Hss' as [v' [[t0' [Hv' Ht0's']] Htt0']].
   { exists t. split; reflexivity. }
   subst v'.
+(*
   specialize (Hs's (View.view R t0')).
   destruct Hs's as [v [[t0 [Hv Ht0s]] Ht0't0]].
   { exists t0'. split. reflexivity. assumption. }
   subst v.
+*)
   assert (In (step s') (proj1_sig t0')).
   { destruct (stutter_password_checker t0') as [H | H].
     * exfalso.
       eapply (time_false_not_R_step s); trivial.
-      admit.
-    * admit.
+      assert (forall a, In a (proj1_sig t) -> R a (hd t0')) as Haux.
+      { intros a Ha.
+        destruct Htt0' as [Htt0' _].
+        destruct (View.included_view_R _ _ _ Htt0' a Ha) as [a' [Ha' Haa']].
+        transitivity a'; trivial.
+        pose proof (Stutter.stutter_equiv_in _ _ H a' Ha') as H0.
+        destruct H0.
+        + rewrite H0. reflexivity.
+        + destruct H0.
+      }
+      transitivity (hd t0').
+      + apply Haux. unfold t. simpl. eauto.
+      + symmetry. apply Haux. unfold t. simpl. eauto.
+    * destruct t0' as [[| a0 l0] Hl0]; [destruct Hl0 |].
+      simpl in H. simpl proj1_sig. compute in Ht0's'. fold s' in Ht0's'.
+      subst.
+      apply (Stutter.stutter_equiv_in (proj1_sig (trace_step s'))).
+      + symmetry. assumption.
+      + right. simpl. eauto.
   }
   assert (R (step s') s \/ R (step s') (step s)) as [? | ?].
-  { admit. }
+  { destruct Htt0' as [Htt0' Ht0't].
+    destruct (View.included_view_R _ _ _ Ht0't _ H) as [s1 [Hs1 Hs's1]].
+    destruct Hs1.
+    + subst s1. eauto.
+    + destruct H0.
+      - subst s1. eauto.
+      - destruct H0.
+  }
   + destruct H0 as [H0 _].
     unfold s' in H0; unfold step in H0; simpl in H0. congruence.
   + destruct H0 as [_ [ _ H0]].
@@ -1315,7 +1352,7 @@ simpl. destruct (bool_dec p p').
     - destruct r'; simpl in H0; congruence.
     - destruct r'; simpl in H0; congruence.
     - destruct p; destruct p'; destruct q'; try congruence.
-Admitted.
+Qed.
 
 Lemma stutter_one_stutter_view {A} {S: sys A} {R: relation A} {E: Equivalence R}:
   forall (s s' : A) (l : list A),
