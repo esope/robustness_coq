@@ -2109,15 +2109,17 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
     }
     clear H1 H2.
     destruct H as [a1' [l1' [Htrace' Ha1a1']]].
-    specialize (IHl1 _ _ Ha1a1' _ Hl1 eq_refl).
+    specialize (IHl1 a1 a1' Ha1a1' _ Hl1 eq_refl).
     destruct IHl1 as [v' [[t' [Hv' Ht'a1']] Ha1l1t']]. subst v'.
-    assert (is_trace (sys_union S1 S2) (s1' :: l1' ++ a1' :: proj1_sig t'))
+    assert (is_trace (sys_union S1 S2) (s1' :: l1' ++ proj1_sig t'))
       as H.
     { rewrite app_comm_cons.
       destruct t' as [[|a' l'] Hl']; [destruct Hl'|].
       simpl proj1_sig in *.
       compute in Ht'a1'. subst.
-      apply is_trace_app; trivial. apply next_refl. }
+      destruct l' as [| a' l'].
+      - rewrite <- app_comm_cons. trivial.
+      - destruct Hl'. apply is_trace_app; trivial. }
     pose (t := exist _ _ H).
     exists (View.view R t). split.
     - apply obs_from_self; trivial. reflexivity.
