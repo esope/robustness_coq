@@ -240,7 +240,6 @@ rename l1' into l1. rename l2' into l2.
 induction H; intros a1' a2' l1' H1' l2' H2'; inversion H1'; subst; eauto.
 * inversion H2'; subst; eauto.
 * inversion H2'; subst; eauto.
-(* * inversion H2'; subst; eauto. *)
 Qed.
 
 Lemma stutter_equiv_cons_left_inv {A} :
@@ -303,6 +302,119 @@ Lemma stutter_equiv_nil_right_inv {A} :
 Proof.
 intros l H. apply stutter_equiv_nil_left_inv.
 apply stutter_equiv_sym. assumption.
+Qed.
+
+Lemma stutter_equiv_cons_end_inv {A} :
+  forall a1 a2 (l1 l2 : list A),
+    stutter_equiv (l1 ++ a1 :: nil) (l2 ++ a2 :: nil) ->
+    a1 = a2.
+Proof.
+intros a1 a2 l1 l2 H.
+remember (l1 ++ a1 :: nil) as l1'.
+remember (l2 ++ a2 :: nil) as l2'.
+generalize dependent l2. generalize dependent l1.
+revert a2. revert a1.
+rename l1' into l1. rename l2' into l2.
+induction H; intros a1' a2' l1' H1' l2' H2'; inversion H1'; subst.
+* exfalso. destruct l1'; simpl in H1'; congruence.
+* destruct l1' as [|a1'' l1']; destruct l2' as [|a2'' l2']; simpl in *.
+  - congruence.
+  - exfalso. inversion H1'; subst.
+    apply stutter_equiv_nil_left_inv in H. subst.
+    destruct l2'; simpl in H2'; congruence.
+  - exfalso. inversion H2'; subst.
+    apply stutter_equiv_nil_right_inv in H. subst.
+    destruct l1'; simpl in H1'; congruence.
+  - inversion H1'; subst. inversion H2'; subst. eauto.
+* destruct l1' as [| a1'' l1'].
+  - exfalso. inversion H1.
+  - rewrite <- app_comm_cons in H1. inversion H1; subst.
+    destruct l2' as [| a2'' l2'].
+    + apply stutter_equiv_cons_inv in H. subst. eauto.
+    + rewrite <- app_comm_cons in H.
+      apply stutter_equiv_cons_inv in H. subst.
+      eauto.
+* destruct l2' as [| a2'' l2'].
+  - exfalso. inversion H2'.
+  - rewrite <- app_comm_cons in H2'. inversion H2'; subst.
+    destruct l1' as [| a1'' l1'].
+    + apply stutter_equiv_cons_inv in H. subst. eauto.
+    + rewrite <- app_comm_cons in H.
+      apply stutter_equiv_cons_inv in H. subst.
+      eauto.
+Qed.
+
+Lemma stutter_equiv_cons_end_left_inv {A} :
+  forall a (l1 l2: list A),
+    stutter_equiv (l1 ++ a :: nil) l2 ->
+    exists l2', l2 = l2' ++ a :: nil.
+Proof.
+intros a l1 l2 H.
+remember (l1 ++ a :: nil) as l1'.
+generalize dependent l1. revert a.
+rename l1' into l1.
+induction H; intros a' l' Heq; eauto.
+* destruct l' as [| a'' l'].
+  - inversion Heq; subst.
+    apply stutter_equiv_nil_left_inv in H. subst. eauto.
+  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
+    destruct (IHstutter_equiv a' l' eq_refl) as [l0 Hl0].
+    subst.
+    exists (a'' :: l0). apply app_comm_cons.
+* destruct l' as [| a'' l'].
+  - exfalso. inversion Heq.
+  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
+    destruct (IHstutter_equiv a' l') as [l0 Hl0].
+    congruence. subst. eauto.
+* subst. destruct (IHstutter_equiv a' l' eq_refl) as [l0 Hl0].
+  exists (a :: l0). rewrite <- app_comm_cons. congruence.
+Qed.
+
+Lemma stutter_equiv_cons_end_right_inv {A} :
+  forall a (l1 l2: list A),
+    stutter_equiv l1 (l2 ++ a :: nil) ->
+    exists l1', l1 = l1' ++ a :: nil.
+Proof.
+intros a l1 l2 H.
+apply stutter_equiv_sym in H.
+eapply stutter_equiv_cons_end_left_inv. eauto.
+Qed.
+
+Lemma stutter_equiv_cons_end_right_add_left {A} :
+  forall a (l1 l2: list A),
+    stutter_equiv l1 (l2 ++ a :: nil) ->
+    stutter_equiv (l1 ++ a :: nil) (l2 ++ a :: nil).
+Proof.
+intros a l1 l2 H.
+remember (l2 ++ a :: nil) as l2'.
+generalize dependent l2. revert a.
+rename l2' into l2.
+induction H; intros a' l2' Heq.
+* exfalso. destruct l2'; simpl in Heq; congruence.
+* destruct l2' as [| a2'' l2'].
+  - inversion Heq; subst.
+    apply stutter_equiv_nil_right_inv in H. subst.
+    simpl. auto.
+  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
+    rewrite <- app_comm_cons. apply stutter_same.
+    eauto.
+* subst. rewrite <- app_comm_cons. rewrite <- app_comm_cons.
+  apply stutter_left. rewrite app_comm_cons. eauto.
+* destruct l2' as [|a2'' l2'].
+  - exfalso. inversion Heq.
+  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
+    apply stutter_right. eauto.
+Qed.
+
+Lemma stutter_equiv_cons_end_left_add_right {A} :
+  forall a (l1 l2: list A),
+    stutter_equiv (l1 ++ a :: nil) l2 ->
+    stutter_equiv (l1 ++ a :: nil) (l2 ++ a :: nil).
+Proof.
+intros a l1 l2 H.
+apply stutter_equiv_sym.
+apply stutter_equiv_cons_end_right_add_left.
+apply stutter_equiv_sym. trivial.
 Qed.
 
 Lemma stutter_equiv_trans_strong {A} :
