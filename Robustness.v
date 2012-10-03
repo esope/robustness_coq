@@ -729,12 +729,8 @@ rewrite <- (Hna1 a1) at 1.
 apply HR; congruence.
 Qed.
 
-Definition same_view_trace {A} {S: sys A} (R: relation A) (t1 t2: trace S) :=
+Definition view {A} {S: sys A} (R: relation A) (t1 t2: trace S) :=
   lift_trace (same_view R) t1 t2.
-
-Definition view {A} {S: sys A} (R: relation A) (t: trace S)
-: trace S -> Prop :=
-  same_view_trace R t.
 
 Lemma view_stutter_one_included {A} {S: sys A}
       (R: relation A) {E: Equivalence R} :
@@ -771,7 +767,7 @@ Qed.
 Lemma view_stutter_compat_included {A} {S: sys A}
       (R: relation A) {E: Equivalence R} :
   forall (t1 t2: trace S),
-    same_view_trace R t1 t2 ->
+    view R t1 t2 ->
     set_included stutter (view R t1) (view R t2).
 Proof.
 intros t1 t2 H12.
@@ -981,8 +977,7 @@ intros t1 t2 Ht1t2 s1 Hs1t1.
 specialize (Ht1t2 t1).
 destruct Ht1t2 as [t2' [Ht2t2' Ht1t2']]. reflexivity.
 destruct t2 as [l2 Hl2]. destruct t2' as [l2' Hl2'].
-unfold view in Ht2t2'. unfold same_view_trace in Ht2t2'.
-unfold lift_trace in Ht2t2'. simpl in *.
+unfold view in Ht2t2'. unfold lift_trace in Ht2t2'. simpl in *.
 apply (View.same_view_in _ l2').
 apply (Stutter.stutter_equiv_in _ _ Ht1t2' s1 Hs1t1).
 symmetry. assumption.
@@ -1134,10 +1129,7 @@ Lemma view_subrel {A} {S: sys A}
 Proof.
 intros H12 t t' H1.
 destruct t as [l Hl]. destruct t' as [l' Hl'].
-unfold view in *.
-unfold same_view_trace in *.
-unfold lift_trace in *.
-simpl in *.
+unfold view in *. unfold lift_trace in *. simpl in *.
 clear Hl Hl'.
 generalize dependent l'. induction l; intros l' H1.
 * destruct l'; [| destruct H1]. compute; trivial.
@@ -1867,15 +1859,13 @@ exists (View.view R t'). split.
   - intros t0 Htt0. exists t0. split.
     + transitivity (exist _ _ Hl); try assumption.
       symmetry. unfold t'.
-      unfold View.view. unfold View.same_view_trace.
-      unfold lift_trace. simpl proj1_sig.
+      unfold View.view. unfold lift_trace. simpl proj1_sig.
       apply (View.repeat_same_view R s s'); trivial.
     + reflexivity.
   - intros t0 Htt0. exists t0. split.
     + transitivity t'; try assumption.
       unfold t'.
-      unfold View.view. unfold View.same_view_trace.
-      unfold lift_trace. simpl proj1_sig.
+      unfold View.view. unfold lift_trace. simpl proj1_sig.
       apply (View.repeat_same_view R s s'); trivial.
     + reflexivity.
 Qed.
@@ -1921,8 +1911,7 @@ destruct (stutter_password_checker t) as [H | H].
           { split.
             * transitivity (exist _ _ Hl); trivial.
               symmetry.
-              unfold t'. unfold View.view. unfold View.same_view_trace.
-              unfold lift_trace. simpl.
+              unfold t'. unfold View.view. unfold lift_trace. simpl.
               split; trivial.
               inversion Heq; subst.
               apply View.repeat_two_same_view; trivial.
@@ -1931,8 +1920,7 @@ destruct (stutter_password_checker t) as [H | H].
         - intros t0 Ht0. exists t0.
           { split.
             * transitivity t'; trivial.
-              unfold t'. unfold View.view. unfold View.same_view_trace.
-              unfold lift_trace. simpl.
+              unfold t'. unfold View.view. unfold lift_trace. simpl.
               split; trivial.
               inversion Heq; subst.
               apply View.repeat_two_same_view; trivial.
@@ -2029,9 +2017,7 @@ destruct HSP as [t0'' [t0' [Ht0's' [Ht0't0'' Ht0t0'']]]].
 symmetry in Ht0t0''.
 apply (Stutter.stutter_two_inv _ _ _ Hneq) in Ht0t0''.
 destruct Ht0t0'' as [n1 [n2 Hn]].
-unfold View.view in Ht0't0''.
-unfold View.same_view_trace in Ht0't0''.
-unfold lift_trace in Ht0't0''.
+unfold View.view in Ht0't0''. unfold lift_trace in Ht0't0''.
 rewrite Hn in Ht0't0''.
 pose proof (View.same_view_repeats_inv _ _ _ _ _ _ Ht0't0'')
   as Hinv.
@@ -2071,8 +2057,7 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
     split.
     * exists t1'. split. trivial. reflexivity.
     * unfold t1'.
-      unfold View.view. unfold View.same_view_trace. unfold lift_trace.
-      simpl proj1_sig.
+      unfold View.view. unfold lift_trace. simpl proj1_sig.
       split.
       + intros [l Hl] Ht. simpl proj1_sig in *.
         destruct l as [| s l]; [destruct Hl |].
