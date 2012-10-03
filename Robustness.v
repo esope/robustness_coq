@@ -2275,6 +2275,7 @@ Proof.
 intros S HS. assumption.
 Qed.
 
+(* Preliminary lemmas for lemma A.1 *)
 Lemma SP_one_make_trace {A} (R : relation A) {E : Equivalence R} (S : sys A):
   forall s s' (l : list A),
     R s s' ->
@@ -2337,15 +2338,14 @@ exists a'. exists l'. split.
 * destruct t0' as [[|x' l0'] Hl']; [destruct Hl'|].
   apply (is_trace_map_included _ _ _ Hincl).
   simpl in Heq. congruence.
-* split.
-  + trivial.
-  + { exists (proj1_sig t0''). split.
-      - symmetry. assumption.
-      - split.
-        * rewrite <- Heq. rewrite Hn. symmetry. assumption.
-        * apply (is_trace_map_included _ _ _ Hincl).
-          destruct t0''; trivial.
-    }
+* split; trivial.
+  { exists (proj1_sig t0''). split.
+    - symmetry. assumption.
+    - split.
+      * rewrite <- Heq. rewrite Hn. symmetry. assumption.
+      * apply (is_trace_map_included _ _ _ Hincl).
+        destruct t0''; trivial.
+  }
 Qed.
 
 Lemma SP_make_trace {A} (R : relation A) {E : Equivalence R} (S1 S2 : sys A):
@@ -2372,76 +2372,6 @@ destruct (classic (s = a)) as [H | H].
   + apply (SP_two_make_trace R _ _ (sys_union_included_right _ _) _ s);
     auto.
 Qed.
-
-Lemma test {A} (S: sys A) {R: relation A} {E: Equivalence R}:
-  forall
-    (a1 a2 : A)
-    (l1 l1' l2 l2' : list A)
-    (Hl1:  is_trace S (l1 ++ a1 :: nil))
-    (Hl1': is_trace S (a1 :: l1'))
-    (H1:   is_trace S (l1 ++ a1 :: l1'))
-    (Hl2:  is_trace S (l2 ++ a2 :: nil))
-    (Hl2': is_trace S (a2 :: l2'))
-    (H2:   is_trace S (l2 ++ a2 :: l2')),
-    (exists (l0 : list A),
-       Stutter.stutter_equiv (l1 ++ a1 :: nil) l0
-       /\ View.same_view R l0 (l2 ++ a2 :: nil)
-       /\ is_trace S l0) ->
-    set_included stutter
-      (View.view R (exist _ _ Hl1')) (View.view R (exist _ _ Hl2')) ->
-    set_included stutter
-      (View.view R (exist _ _ H1)) (View.view R (exist _ _ H2)).
-Proof.
-intros a1 a2 l1 l1' l2 l2' Hl1 Hl1' H1 Hl2 Hl2' H2
-       [l0 [Hstutter0 [Hview0 Htrace0]]] H'.
-intros [l Hl] Hviewl.
-Opaque View.same_view. Opaque app. compute in Hviewl.
-Transparent View.same_view. Transparent app.
-apply View.same_view_app_inv_left in Hviewl.
-destruct Hviewl as [l3 [l3' [Heq [Hview3 Hview3']]]].
-subst. destruct l3' as [|a3' l3']; [destruct Hview3'|].
-pose proof (is_trace_app_inv_head _ _ _ Hl) as Htrace3.
-pose proof (is_trace_app_inv_tail _ _ _ Hl) as Htrace3'.
-specialize (H' (exist _ _ Htrace3') Hview3').
-destruct H' as [[l4' Hl4'] [Hview4' Hstutter4']].
-Opaque View.same_view. Opaque app. Opaque is_trace. compute in *|-.
-Transparent is_trace. Transparent View.same_view. Transparent app.
-destruct l4' as [| a4 l4']; [destruct Hview4' |].
-assert (a3' = a4).
-{ apply Stutter.stutter_equiv_cons_inv in Hstutter4'. assumption. }
-subst.
-(* l3 ++ a4 :: l4' *)
-
-(*
-assert (View.same_view R (l2 ++ a2 :: l2') (l0 ++ l4')).
-{ replace (l2 ++ a2 :: l2') with ((l2 ++ a2 :: nil) ++ l2').
-  apply View.same_view_congruence; trivial. symmetry; trivial.
-  rewrite <- app_assoc. reflexivity. }
-*)
-
-Admitted.
-
-(*
-  Hstutterview : exists l'' : list A,
-                   Stutter.stutter_equiv (s1 :: a1 :: nil) l'' /\
-                   View.same_view R l'' (s1' :: l1' ++ a1' :: nil) /\
-                   is_trace (sys_union S1 S2) l''
-  Ha1l1t' : set_equiv stutter
-              (View.view R
-                 (exist (fun l : list A => is_trace (sys_union S1 S2) l)
-                    (a1 :: l1) Hl1)) (View.view R t')
-  H : is_trace (sys_union S1 S2) (s1' :: l1' ++ proj1_sig t')
-  t := exist (is_trace (sys_union S1 S2)) (s1' :: l1' ++ proj1_sig t') H
-    : {x | is_trace (sys_union S1 S2) x}
-  t0 := exist (fun l : list A => is_trace (sys_union S1 S2) l)
-          (s1 :: a1 :: l1) (conj Hs1a Hl1)
-     : {l : list A | is_trace (sys_union S1 S2) l}
-
-   set_included stutter (View.view R t0) (View.view R t)
-*)
-
-
-
 
 Lemma SP_sys_union_included {A} {R: relation A} {E: Equivalence R} :
   forall (S1 S2: sys A) (s1 s1': A),
@@ -2502,9 +2432,31 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
     - apply obs_from_self; trivial. reflexivity.
     - { pose (t0 := (exist (fun l : list A => is_trace (sys_union S1 S2) l)
                            (s1 :: a1 :: l1) (conj Hs1a Hl1))).
-        fold t0. split.
-        * admit.
-        * admit.
+        fold t0.
+        destruct t' as [[|a' l'] Hl']; [destruct Hl'|].
+        compute in Ht'a1'. subst a1'. rename a' into a1'.
+        simpl proj1_sig in *. split.
+        * { intros [l0 Hl0] H0.
+            Opaque View.same_view. compute in H0. Transparent View.same_view.
+            destruct l0 as [|x0 l0]; [destruct H0|]. destruct H0 as [Hs1x0 H0].
+            destruct l0 as [|x1 l0]; [destruct H0|]. destruct H0 as [Ha1x1 H0].
+            destruct Hstutterview as [l'' [Hstutter'' [Hview'' Htrace'']]].
+            (* need to use Ha1l1t' and some lemma to '++' traces *)
+            (* need for commutation? *)
+            admit.
+          }
+        * { intros [l0 Hl0] H0.
+            Opaque View.same_view. Opaque app. compute in H0.
+            Transparent app. Transparent View.same_view.
+            destruct l0 as [|x0 l0]; [destruct H0|]. destruct H0 as [Hs1x0 H0].
+            apply View.same_view_app_inv_left in H0.
+            destruct H0 as [l1'' [l2'' [Heq'' [Hview1'' Hview2'']]]]. subst.
+            destruct l2'' as [|a2' l2'']; [destruct Hview2''|].
+            destruct Hview2'' as [Ha1'a2' Hview2''].
+            (* need to use Ha1l1t' and some lemma to '++' traces *)
+            (* need for commutation? *)
+            admit.
+          }
       }
   }
 Qed.
@@ -2559,9 +2511,10 @@ Lemma set_included_view_subrel {A} (S: sys A)
   (forall x y, R1 x y -> R2 x y) ->
   @commute (trace S) stutter (View.view R2) ->
   set_included stutter (View.view R1 t) (View.view R1 t') ->
+  set_included stutter (View.view R1 t') (View.view R1 t) ->
   set_included stutter (View.view R2 t) (View.view R2 t').
 Proof.
-intros t t' H12 Hcomm H1 t0 Htt0.
+intros t t' H12 Hcomm H1 H1' t0 Htt0.
 apply View.exploit_set_included_stutter_view in H1.
 destruct H1 as [t1 [Ht't1 Htt1]].
 symmetry in Htt1.
