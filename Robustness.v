@@ -15,6 +15,7 @@ http://www.cis.upenn.edu/~stevez/papers/ZM01b.pdf
 Require Import Relations.
 Require Import List.
 Require Import RelationClasses.
+Require Import Omega.
 
 Record sys (state: Type) :=
 { next : relation state
@@ -424,7 +425,6 @@ Lemma stutter_equiv_trans_strong {A} :
     stutter_equiv l2 l3 ->
     stutter_equiv l1 l3.
 Proof.
-Require Import Omega.
 intros n; induction n; intros l1 l2 l3 Hn H12 H23.
 * destruct l1; destruct l2; destruct l3; simpl in Hn;
   try solve [exfalso; omega]; auto.
@@ -678,6 +678,82 @@ intros a1 a2 l Ha Hl. induction l.
     - destruct IHl as [n1 [n2 Heq]]; trivial.
       exists (S n1). exists n2. simpl. congruence.
     - congruence.
+Qed.
+
+Lemma stutter_equiv_app_left_inv {A} :
+  forall a (l1 l2 l3: list A),
+    stutter_equiv (l1 ++ a :: l2) l3 ->
+    exists l1' l2',
+      l3 = l1' ++ a :: l2'
+      /\ stutter_equiv (l1 ++ a :: nil) (l1' ++ a :: nil)
+      /\ stutter_equiv (a :: l2) (a :: l2').
+Proof.
+intros a l1 l2 l3 H.
+remember (l1 ++ a :: l2) as l1'.
+generalize dependent l2. revert a l1. rename l1' into l1.
+induction H; intros a' l1' l2' Heq.
+* exfalso. destruct l1'; inversion Heq.
+* destruct l1' as [|a1' l1'].
+  - inversion Heq; subst.
+    exists nil. exists l2. simpl. auto.
+  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
+    destruct (IHstutter_equiv a' l1' l2' eq_refl) as [l1'' [l2'' [? [? ?]]]].
+    subst.
+    exists (a1' :: l1''). exists l2''.
+    repeat rewrite <- app_comm_cons. auto.
+* destruct l1' as [|a1' l1'].
+  - inversion Heq; subst.
+    destruct (IHstutter_equiv a' nil l1 eq_refl) as [l1'' [l2'' [? [? ?]]]].
+    subst. exists l1''. exists l2''. auto.
+  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
+    destruct (stutter_equiv_cons_left_inv _ _ _ H) as [l2'' H2''].
+    subst.
+    destruct (IHstutter_equiv a' l1' l2' H2) as [l1'' [l0 [? [? ?]]]].
+    exists l1''. exists l0. split; trivial. split; trivial.
+    { destruct l1'' as [|a1'' l1''].
+      * inversion H0; subst. clear H0.
+        destruct (stutter_one_inv _ _ H1) as [n Hn].
+        rewrite <- app_comm_cons. rewrite Hn.
+        apply stutter_left. symmetry. apply stutter_equiv_repeat.
+      * rewrite <- app_comm_cons in H0. inversion H0; subst.
+        repeat rewrite <- app_comm_cons.
+        rewrite <- app_comm_cons in H1.
+        apply stutter_equiv_cons_right_add_left. trivial.
+    }
+* subst. destruct l1' as [|a1' l1'].
+  - assert (a' = a). { apply stutter_equiv_cons_inv in H. assumption. }
+    subst. exists (a :: nil). exists l2. simpl; auto.
+  - rewrite <- app_comm_cons in H.
+    assert (a1' = a). { apply stutter_equiv_cons_inv in H. assumption. }
+    subst.
+    destruct (IHstutter_equiv a' (a :: l1') l2' eq_refl)
+      as [l1'' [l2'' [? [? ?]]]].
+    { destruct l1'' as [|a1'' l1''].
+      * inversion H0; subst. clear H0. simpl in *.
+        destruct (stutter_one_inv _ _ H1) as [n Hn].
+        exists (a' :: nil). exists l2''.
+        split; trivial. split; trivial.
+        simpl. rewrite Hn. apply stutter_right.
+        symmetry. apply stutter_equiv_repeat.
+      * rewrite <- app_comm_cons in H0. inversion H0; subst. clear H0.
+        exists (a1'' :: a1'' :: l1''). exists l2''.
+        repeat rewrite <- app_comm_cons. auto.
+    }
+Qed.
+
+Lemma stutter_equiv_app_right_inv {A} :
+  forall a (l1 l2 l3: list A),
+    stutter_equiv l1 (l2 ++ a :: l3) ->
+    exists l2' l3',
+      l1 = l2' ++ a :: l3'
+      /\ stutter_equiv (l2' ++ a :: nil) (l2 ++ a :: nil)
+      /\ stutter_equiv (a :: l3') (a :: l3).
+Proof.
+intros a l1 l2 l3 H.
+symmetry in H.
+destruct (stutter_equiv_app_left_inv _ _ _ _ H) as [l2' [l3' [? [? ?]]]].
+exists l2'. exists l3'. split; trivial.
+split; symmetry; trivial.
 Qed.
 
 End Stutter.
