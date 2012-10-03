@@ -2015,7 +2015,27 @@ Proof.
 intros S HS. assumption.
 Qed.
 
-Lemma SP_two_make_trace {A} (R : relation A) {E : Equivalence R} (S1 S2 : sys A):
+Lemma SP_one_make_trace {A} (R : relation A) {E : Equivalence R} (S : sys A):
+  forall s s' (l : list A),
+    R s s' ->
+    exists (a' : A) (l' : list A),
+      is_trace S (s' :: l' ++ a' :: nil)
+      /\ R s a'
+      /\ exists l'',
+           Stutter.stutter_equiv (s :: s :: nil) l''
+           /\ View.same_view R l'' (s' :: l' ++ a' :: nil).
+Proof.
+intros s s' l HR.
+exists s'. exists nil. split.
+* split. apply next_refl. compute; trivial.
+* split; trivial.
+  exists (s :: s :: nil). split.
+  + reflexivity.
+  + compute. tauto.
+Qed.
+
+Lemma SP_two_make_trace {A} (R : relation A) {E : Equivalence R}
+      (S1 S2 : sys A):
   sys_included S1 S2 ->
   forall a s s' (l : list A),
     SP S1 R ->
@@ -2023,7 +2043,11 @@ Lemma SP_two_make_trace {A} (R : relation A) {E : Equivalence R} (S1 S2 : sys A)
     next S1 s a ->
     s <> a ->
     exists (a' : A) (l' : list A),
-      is_trace S2 (s' :: l' ++ a' :: nil) /\ R a a'.
+      is_trace S2 (s' :: l' ++ a' :: nil)
+      /\ R a a'
+      /\ exists l'',
+           Stutter.stutter_equiv (s :: a :: nil) l''
+           /\ View.same_view R l'' (s' :: l' ++ a' :: nil).
 Proof.
 intros Hincl a s s' l HSP HR Hnext Hneq.
 specialize (HSP _ _ HR). simpl in HSP.
@@ -2033,8 +2057,8 @@ pose (t0 := exist _ _ Htrace0).
 apply (exploit_obs_eq t0) in HSP; try reflexivity.
 destruct HSP as [t0'' [t0' [Ht0's' [Ht0't0'' Ht0t0'']]]].
 symmetry in Ht0t0''.
-apply (Stutter.stutter_two_inv _ _ _ Hneq) in Ht0t0''.
-destruct Ht0t0'' as [n1 [n2 Hn]].
+pose proof (Stutter.stutter_two_inv _ _ _ Hneq Ht0t0'') as H.
+destruct H as [n1 [n2 Hn]].
 unfold View.view in Ht0't0''. unfold lift_trace in Ht0't0''.
 rewrite Hn in Ht0't0''.
 pose proof (View.same_view_repeats_inv _ _ _ _ _ _ Ht0't0'')
@@ -2046,10 +2070,38 @@ assert (s' = s'').
   compute in Ht0's'. congruence. }
 subst s''.
 exists a'. exists l'. split.
-- destruct t0' as [[|x' l0'] Hl']; [destruct Hl'|].
+* destruct t0' as [[|x' l0'] Hl']; [destruct Hl'|].
   apply (is_trace_map_included _ _ _ Hincl).
   simpl in Heq. congruence.
-- trivial.
+* split.
+  + trivial.
+  + exists (proj1_sig t0''). split.
+    - symmetry. assumption.
+    - rewrite <- Heq. rewrite Hn. symmetry. assumption.
+Qed.
+
+Lemma SP_make_trace {A} (R : relation A) {E : Equivalence R} (S1 S2 : sys A):
+  forall a s s' (l : list A),
+    SP S1 R ->
+    SP S2 R ->
+    R s s' ->
+    next (sys_union S1 S2) s a ->
+    exists (a' : A) (l' : list A),
+      is_trace (sys_union S1 S2) (s' :: l' ++ a' :: nil)
+      /\ R a a'
+      /\ exists l'',
+           Stutter.stutter_equiv (s :: a :: nil) l''
+           /\ View.same_view R l'' (s' :: l' ++ a' :: nil).
+Proof.
+Require Import Classical.
+intros a s s' l HSP1 HSP2 HR Hnext.
+destruct (classic (s = a)) as [H | H].
+* subst. apply SP_one_make_trace; auto.
+* destruct Hnext as [Hnext1 | Hnext2].
+  + apply (SP_two_make_trace R _ _ (sys_union_included_left _ _) _ s);
+    auto.
+  + apply (SP_two_make_trace R _ _ (sys_union_included_right _ _) _ s);
+    auto.
 Qed.
 
 Lemma SP_sys_union_included {A} {R: relation A} {E: Equivalence R} :
@@ -2093,22 +2145,8 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
         - reflexivity. }
 + { compute in Hs1. subst a1. destruct Hl1 as [Hs1a Hl1].
     rename a into a1.
-    assert
-      (exists a1' l1',
-         is_trace (sys_union S1 S2) (s1' :: l1' ++ a1' :: nil)
-         /\ R a1 a1') as H.
-    { clear IHl1.
-      destruct (classic (s1 = a1)) as [H | H].
-      * subst a1. exists s1'. exists nil. split; trivial.
-        split. apply next_refl. compute; trivial.
-      * destruct Hs1a as [Hs1a | Hs1a].
-        + apply (SP_two_make_trace R _ _ (sys_union_included_left _ _) _ s1);
-          auto.
-        + apply (SP_two_make_trace R _ _ (sys_union_included_right _ _) _ s1);
-          auto.
-    }
-    clear H1 H2.
-    destruct H as [a1' [l1' [Htrace' Ha1a1']]].
+    pose proof (SP_make_trace R S1 S2 a1 s1 s1' l1 H1 H2 Hs1s1' Hs1a) as H.
+    destruct H as [a1' [l1' [Htrace' [Ha1a1' Hstutterview]]]].
     specialize (IHl1 a1 a1' Ha1a1' _ Hl1 eq_refl).
     destruct IHl1 as [v' [[t' [Hv' Ht'a1']] Ha1l1t']]. subst v'.
     assert (is_trace (sys_union S1 S2) (s1' :: l1' ++ proj1_sig t'))
