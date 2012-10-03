@@ -118,6 +118,24 @@ destruct Hl.
 reflexivity.
 Qed.
 
+Lemma is_trace_app {A} {S: sys A}:
+  forall a1 a2 (l1 l2: list A),
+    is_trace S (l1 ++ a1 :: nil) ->
+    next S a1 a2 ->
+    is_trace S (a2 :: l2) ->
+    is_trace S (l1 ++ a1 :: a2 :: l2).
+Proof.
+intros a1 a2 l1. revert a1 a2.
+induction l1; intros a1 a2 l2 H1 Hnext H2.
+* split; trivial.
+* rewrite <- app_comm_cons in H1. destruct l1 as [| a1' l1].
+  + destruct H1 as [Haa1 _].
+    split; trivial. split; trivial.
+  + rewrite <- app_comm_cons in H1. destruct H1 as [Haa1' H1].
+    rewrite <- app_comm_cons. rewrite <- app_comm_cons. split; trivial.
+    apply IHl1; trivial.
+Qed.
+
 (* lifts a binary function from lists to traces *)
 Definition lift_trace {A B} {S: sys A}
            (f: list A -> list A -> B) (t1 t2: trace S) : B :=
@@ -2095,14 +2113,15 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
     destruct IHl1 as [v' [[t' [Hv' Ht'a1']] Ha1l1t']]. subst v'.
     assert (is_trace (sys_union S1 S2) (s1' :: l1' ++ a1' :: proj1_sig t'))
       as H.
-    { admit.
-      (* destruct t' as [[| a' l'] Hl']; [destruct Hl'|]. *)
-      (* compute in Ht'a1'. subst. *)
-      (* simpl proj1_sig. split; trivial. destruct Htrace'; trivial. *) }
+    { rewrite app_comm_cons.
+      destruct t' as [[|a' l'] Hl']; [destruct Hl'|].
+      simpl proj1_sig in *.
+      compute in Ht'a1'. subst.
+      apply is_trace_app; trivial. apply next_refl. }
     pose (t := exist _ _ H).
     exists (View.view R t). split.
     - apply obs_from_self; trivial. reflexivity.
-    - admit.
+    - unfold t. admit.
   }
 Admitted.
 
