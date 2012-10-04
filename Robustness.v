@@ -1429,8 +1429,7 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
         destruct t' as [[|a' l'] Hl']; [destruct Hl'|].
         compute in Ht'a1'. subst a1'. rename a' into a1'.
         simpl proj1_sig in *. split.
-        * { intros [l0 Hl0] H0.
-            Opaque same_view. compute in H0. Transparent same_view.
+        * { intros [l0 Hl0] H0. simpl_ctx.
             destruct l0 as [|x0 l0]; [destruct H0|]. destruct H0 as [Hs1x0 H0].
             destruct l0 as [|x1 l0]; [destruct H0|]. destruct H0 as [Ha1x1 H0].
             destruct Hstutterview as [l'' [Hstutter'' [Hview'' Htrace'']]].
@@ -1438,9 +1437,7 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
             (* need for commutation? *)
             admit.
           }
-        * { intros [l0 Hl0] H0.
-            Opaque same_view. Opaque app. compute in H0.
-            Transparent app. Transparent same_view.
+        * { intros [l0 Hl0] H0. simpl_ctx.
             destruct l0 as [|x0 l0]; [destruct H0|]. destruct H0 as [Hs1x0 H0].
             apply same_view_app_inv_left in H0.
             destruct H0 as [l1'' [l2'' [Heq'' [Hview1'' Hview2'']]]]. subst.
@@ -1491,7 +1488,7 @@ transitivity (toER (obs_eq (sys_union S Attack) (obs_eq Attack RA))).
 Qed.
 
 (** * Monotonicity of obs_eq (Prop 4.2).
-      I was unable to prove it without a commutation property! *)
+      I was _unable_ to prove it without a commutation property! *)
 
 Lemma set_equiv_view_subrel {A} (S: sys A)
   (R1: relation A) {E1: Equivalence R1}

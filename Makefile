@@ -6,7 +6,7 @@ MODULES := MyTactics \
 
 VS 	:= $(MODULES:%=%.v)
 
-COQDOCFLAGS="--gallina --interpolate --utf8"
+COQDOCFLAGS="--light --interpolate --utf8"
 
 .PHONY: coq doc clean
 
