@@ -1,4 +1,5 @@
 MODULES := MyTactics \
+	   SetPredicates \
 	   Lattice Kleene \
            NatLattice SetLattice RelLattice PERLattice ERLattice \
            Stutter View Robustness

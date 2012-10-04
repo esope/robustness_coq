@@ -31,6 +31,7 @@ Require Import List.
 Require Import RelationClasses.
 Require Import Stutter.
 Require Import View.
+Require Import SetPredicates.
 
 (** * Systems. *)
 Record sys (state: Type) :=
@@ -296,62 +297,21 @@ constructor.
 * intros [? ?] [? ?] [? ?] ? ?. simpl in *. etransitivity; eassumption.
 Defined.
 
-(** * Predicates over sets. *)
-Definition set_included {A} (R: relation A) (S1 S2: A -> Prop) :=
-  forall s1, S1 s1 -> exists s2, S2 s2 /\ R s1 s2.
-
-Definition set_equiv {A} (R: relation A) (S1 S2: A -> Prop) :=
-  set_included R S1 S2 /\ set_included R S2 S1.
-
-Instance set_included_PreOrder {A} {R: relation A} `{Equivalence A R}:
-  PreOrder (set_included R).
-Proof.
-constructor.
-* intros X x Hx; exists x; split; auto.
-* intros X Y Z HXY HYZ x Hx.
-  destruct (HXY x Hx) as [y [Hy Hxy]].
-  destruct (HYZ y Hy) as [z [Hz Hyz]].
-  exists z. split. assumption. transitivity y; assumption.
-Qed.
-
-Instance set_equiv_Equivalence {A} {R: relation A} `{Equivalence A R}:
-  Equivalence (set_equiv R).
-Proof.
-constructor.
-* intro X; split; reflexivity.
-* intros X Y [HXY HYX]; split; intros ? ?; auto.
-* intros X Y Z [HXY HYX] [HYZ HZY]; split;
-  transitivity Y; auto.
-Qed.
-
-Lemma set_included_subrel {A} :
-  forall (R1 R2: relation A) (E E': A -> Prop),
-    (forall x y, R1 x y -> R2 x y) ->
-    set_included R1 E E' ->
-    set_included R2 E E'.
-Proof.
-intros R1 R2 E E' H H1.
-intros x Hx.
-destruct (H1 x Hx) as [y [Hy Hxy]].
-exists y. split; auto.
-Qed.
-
-Lemma set_equiv_subrel {A} :
-  forall (R1 R2: relation A) (E E': A -> Prop),
-    (forall x y, R1 x y -> R2 x y) ->
-    set_equiv R1 E E' ->
-    set_equiv R2 E E'.
-Proof.
-intros R1 R2 E E' H [H1 H1'].
-split; eapply set_included_subrel; eauto.
-Qed.
-
 (** The final definition of stuttering over traces. *)
 Definition stutter {A} {S: sys A} (t1 t2: trace S) : Prop :=
   lift_trace stutter_equiv t1 t2.
 Hint Unfold stutter.
 
 Hint Extern 3 (stutter _ _) => compute; reflexivity.
+
+Instance stutter_Equivalence {A} {S: sys A}: Equivalence (@stutter A S).
+Proof.
+constructor.
+* intros [? ?]; auto.
+* intros [? ?] [? ?] ?. compute. symmetry. assumption.
+* intros [? ?] [y ?] [? ?] ? ?. compute. transitivity y; assumption.
+Qed.
+Hint Resolve stutter_Equivalence.
 
 (** Simplification tactics. *)
 Lemma stutter_stutter_equiv {A} {S: sys A}:
@@ -385,6 +345,16 @@ Definition view {A} {S: sys A} (R: relation A) (t1 t2: trace S) :=
 Hint Unfold view.
 
 Hint Extern 3 (view _ _ _) => compute; reflexivity.
+
+Instance view_Equivalence {A} {S: sys A}
+         {R: relation A} {E: Equivalence R}: Equivalence (@view A S R).
+Proof.
+constructor.
+* intros [? ?]; auto.
+* intros [? ?] [? ?] ?. compute. symmetry. assumption.
+* intros [? ?] [y ?] [? ?] ? ?. compute. transitivity y; assumption.
+Qed.
+Hint Resolve view_Equivalence.
 
 (** Simplification tactics. *)
 Lemma view_same_view {A} {S: sys A} {R: relation A} :
@@ -491,68 +461,6 @@ split; apply view_stutter_one_included; auto.
 symmetry; assumption.
 Qed.
 
-(** ** Compatibility with some relations. *)
-Lemma view_stutter_compat_included {A} {S: sys A}
-      (R: relation A) {E: Equivalence R} :
-  forall (t1 t2: trace S),
-    view R t1 t2 ->
-    set_included stutter (view R t1) (view R t2).
-Proof.
-intros t1 t2 H12.
-destruct t1 as [[| a1 l1] Hl1]; [destruct Hl1|].
-destruct t2 as [[| a2 l2] Hl2]; [destruct Hl2|].
-destruct H12 as [Ha1a2 Hl1l2].
-intros [[| a l] Hal Ha1l1al]; [destruct Hal|].
-destruct Ha1l1al as [Ha1a Hl1l].
-exists (exist _ _ Hal). deep_splits.
-* intuition eauto.
-* transitivity l1. symmetry; trivial. trivial.
-* reflexivity.
-Qed.
-
-Lemma view_stutter_compat {A} {S: sys A}
-      (R: relation A) {E: Equivalence R} :
-  forall (t1 t2: trace S),
-    view R t1 t2 ->
-    set_equiv stutter (view R t1) (view R t2).
-Proof.
-intros t1 t2 H12. split.
-* apply view_stutter_compat_included; trivial.
-* apply view_stutter_compat_included; trivial.
-  symmetry; trivial.
-Qed.
-
-
-Lemma set_equiv_view_equiv_rel {A} (S: sys A)
-  (R1: relation A) {E1: Equivalence R1}
-  (R2: relation A) {E2: Equivalence R2}:
-  forall t t' : trace S,
-  (forall x y, R1 x y <-> R2 x y) ->
-  set_equiv stutter (view R1 t) (view R1 t') ->
-  set_equiv stutter (view R2 t) (view R2 t').
-Proof.
-intros t t' H H1.
-assert (forall x y, R1 x y -> R2 x y) as H12 by firstorder.
-assert (forall x y, R2 x y -> R1 x y) as H21 by firstorder.
-clear H. split.
-* intros t0 Htt0.
-  destruct H1 as [H1 _].
-  apply (same_view_subrel R2 R1) in Htt0; trivial.
-  specialize (H1 t0 Htt0).
-  destruct H1 as [t1 [Ht't1 Htt1]].
-  exists t1. split.
-  + apply (same_view_subrel R1 R2); trivial.
-  + trivial.
-* intros t0 Htt0.
-  destruct H1 as [_ H1].
-  apply (same_view_subrel R2 R1) in Htt0; trivial.
-  specialize (H1 t0 Htt0).
-  destruct H1 as [t1 [Ht't1 Htt1]].
-  exists t1. split.
-  + apply (same_view_subrel R1 R2); trivial.
-  + trivial.
-Qed.
-
 (** ** General properties. *)
 Lemma included_view_R {A} {S: sys A} (R: relation A) {E: Equivalence R}:
   forall (t1 t2: trace S),
@@ -632,36 +540,6 @@ destruct Hl as [Ha1a Hl1l].
 exists (a :: l0). deep_splits; trivial.
 apply stutter_equiv_cons_left_add_right. trivial.
 Qed.
-
-Lemma view_set_included_view {A} {R: relation A} {E: Equivalence R} :
-  forall (l1 l2: list A),
-    same_view R l1 l2 ->
-    set_included stutter_equiv (same_view R l1) (same_view R l2).
-Proof.
-intro l1; induction l1; intros l2 H l Hl.
-* destruct l2; [| destruct H].
-  destruct l; [| destruct Hl].
-  exists nil. split; reflexivity.
-* rename a into a1.
-  destruct l2 as [| a2 l2]; [destruct H|].
-  destruct H as [Ha1a2 Hl1l2].
-  destruct l as [| a l]; [destruct Hl |].
-  destruct Hl as [Ha1a Hl1l].
-  specialize (IHl1 l2 Hl1l2 l Hl1l).
-  destruct IHl1 as [l0 [Hl2l0 Hll0]].
-  exists (a :: l0). deep_splits; auto.
-  { transitivity a1. symmetry. trivial. trivial. }
-Qed.
-
-Lemma view_set_equiv_view {A} {R: relation A} {E: Equivalence R} :
-  forall (l1 l2: list A),
-    same_view R l1 l2 ->
-    set_equiv stutter_equiv (same_view R l1) (same_view R l2).
-Proof.
-intros l1 l2 H. split; apply view_set_included_view.
-trivial. symmetry; trivial.
-Qed.
-
 
 (** * Observations. *)
 (* Observation from a given state. *)
@@ -1489,7 +1367,7 @@ destruct (classic (s = a)) as [H | H].
     auto.
 Qed.
 
-(** Warning: the proof is incomplete: it seems that some commutation
+(** _Warning_: the proof is incomplete: it seems that some commutation
     property is needed. *)
 Lemma SP_sys_union_included {A} {R: relation A} {E: Equivalence R} :
   forall (S1 S2: sys A) (s1 s1': A),
@@ -1614,31 +1492,6 @@ Qed.
 
 (** * Monotonicity of obs_eq (Prop 4.2).
       I was unable to prove it without a commutation property! *)
-Definition commute {A} (R1: relation A) (R2: relation A) :=
-  forall (x y z : A),
-    R1 x y ->
-    R2 y z ->
-    exists y', R2 x y' /\ R1 y' z.
-
-Lemma set_included_view_subrel {A} (S: sys A)
-  (R1: relation A) {E1: Equivalence R1}
-  (R2: relation A) {E2: Equivalence R2}:
-  forall t t' : trace S,
-  (forall x y, R1 x y -> R2 x y) ->
-  @commute (trace S) stutter (view R2) ->
-  set_included stutter (view R1 t) (view R1 t') ->
-  set_included stutter (view R1 t') (view R1 t) ->
-  set_included stutter (view R2 t) (view R2 t').
-Proof.
-intros t t' H12 Hcomm H1 H1' t0 Htt0.
-apply exploit_set_included_stutter_view in H1.
-destruct H1 as [t1 [Ht't1 Htt1]].
-symmetry in Htt1.
-pose proof (Hcomm _ _ _ Htt1 Htt0) as [t0' [Ht1t0' Ht0't0]].
-exists t0'. split.
-- transitivity t1. apply (same_view_subrel R1 R2); auto. assumption.
-- symmetry. assumption.
-Qed.
 
 Lemma set_equiv_view_subrel {A} (S: sys A)
   (R1: relation A) {E1: Equivalence R1}
@@ -1649,9 +1502,9 @@ Lemma set_equiv_view_subrel {A} (S: sys A)
   set_equiv stutter (view R1 t) (view R1 t') ->
   set_equiv stutter (view R2 t) (view R2 t').
 Proof.
-intros t t' H12 Hstutterview [H1 H1']. split.
-apply (set_included_view_subrel _ R1 R2); auto.
-apply (set_included_view_subrel _ R1 R2); auto.
+intros t t' H12 Hcomm H1.
+apply (set_equiv_subrel' stutter (view R1) (view R2)); trivial.
+intros x y. apply same_view_subrel; trivial.
 Qed.
 
 Lemma obs_included_monotone {A} {S: sys A}
