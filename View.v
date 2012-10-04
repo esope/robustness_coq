@@ -169,7 +169,7 @@ rewrite <- (Hna1 a1) at 1.
 apply HR; congruence.
 Qed.
 
-Lemma view_stutter_aux {A} {R: relation A} {E: Equivalence R}:
+Lemma view_stutter {A} {R: relation A} {E: Equivalence R}:
   forall (t1 t2: list A),
     stutter_equiv t1 t2 ->
     exists t0,
