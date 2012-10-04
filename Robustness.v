@@ -16,11 +16,7 @@ Require Import MyTactics.
 Require Import Relations.
 Require Import List.
 Require Import RelationClasses.
-Require Import Omega.
-
-Hint Extern 3 (_ <= _) => first [omega | simpl; omega].
-Hint Extern 3 (_ = _) => first [omega | simpl; omega].
-Hint Extern 3 => exfalso; first [omega | simpl in *|-; omega].
+Require Import Stutter.
 
 Ltac equivalence_reflexivity :=
   match goal with
@@ -126,7 +122,58 @@ rewrite <- app_comm_cons in H. destruct l1 as [|a1 l1].
   rewrite <- app_comm_cons. split; eauto.
 Qed.
 
+Lemma is_trace_stutter {A} {S: sys A} :
+  forall l1 l2,
+    is_trace S l1 ->
+    stutter_equiv l1 l2 ->
+    is_trace S l2.
+Proof.
+intros l1 l2 Htrace H12.
+induction H12.
+* inversion Htrace.
+* destruct l1.
+  - apply stutter_equiv_nil_left_inv in H12.
+    subst. auto.
+  - destruct l2. simpl; trivial.
+    destruct Htrace.
+    apply stutter_equiv_cons_inv in H12. subst.
+    split; auto.
+* apply IHstutter_equiv. apply (is_trace_tail a). assumption.
+* split; auto.
+Qed.
+
+Lemma is_trace_repeat {A} {S: sys A} :
+  forall a n, is_trace S (a :: repeat a n).
+Proof.
+intros a n. induction n; simpl.
+* trivial.
+* split; auto.
+Qed.
+
+
+Lemma is_trace_repeat_remove_prefix {A} {S: sys A} :
+  forall a b n (l: list A),
+    is_trace S (repeat a n ++ b :: l) ->
+    is_trace S (b :: l).
+Proof.
+intros a b n l H.
+induction n.
+* assumption.
+* apply IHn; auto.
+  unfold repeat in H. fold (repeat a n) in H.
+  rewrite <- app_comm_cons in H. clear IHn.
+  destruct n.
+  + destruct H. assumption.
+  + unfold repeat in H. fold (repeat a n) in H.
+    rewrite <- app_comm_cons in H.
+    destruct H.
+    unfold repeat. fold (repeat a n).
+    rewrite <- app_comm_cons.
+    assumption.
+Qed.
+
 Definition trace {A} (S: sys A) := { l: list A | is_trace S l }.
+
 
 Definition trace_one {A} (S: sys A) (x: A) : trace S.
 Proof.
@@ -138,6 +185,32 @@ match tr with
 | exist nil H => match H with end
 | exist (a :: _) _ => a
 end.
+
+Lemma is_trace_repeat_prefix {A} {S: sys A} :
+  forall (t: trace S) a n,
+    next S a (hd t) ->
+    is_trace S (a :: repeat a n ++ proj1_sig t).
+Proof.
+intros t a n H. induction n.
+* destruct t as [[| b l] Hl]; [destruct Hl |]. simpl. split.
+  + assumption.
+  + destruct l; trivial.
+* destruct t as [[| b l] Hl]; [destruct Hl |].
+  simpl proj1_sig in *. simpl in H.
+  unfold repeat. fold (repeat a n). split; auto.
+Qed.
+
+Lemma is_trace_repeat_two {A} {S: sys A} :
+  forall a b n m,
+    next S a b ->
+    is_trace S (a :: repeat a n ++ b :: repeat b m).
+Proof.
+intros a b n m H.
+pose proof (@is_trace_repeat _ S b m) as Htrace.
+pose (t := exist _ _ Htrace).
+replace (b :: repeat b m) with (proj1_sig t) by reflexivity.
+apply is_trace_repeat_prefix. assumption.
+Qed.
 
 Definition is_trace_from {A} {S: sys A} (tr: trace S) (s : A) : Prop :=
   hd tr = s.
@@ -212,557 +285,6 @@ constructor.
 * intros [? ?] [? ?] [? ?] ? ?. simpl in *. etransitivity; eassumption.
 Defined.
 
-
-Module Stutter. (* proofs about stutter_equiv *)
-
-Inductive stutter_equiv {A} : list A -> list A -> Prop :=
-| stutter_nil: stutter_equiv nil nil
-| stutter_same:
-    forall a l1 l2,
-      stutter_equiv l1 l2 ->
-      stutter_equiv (a :: l1) (a :: l2)
-| stutter_left:
-    forall a l1 l2,
-      stutter_equiv (a :: l1) l2 ->
-      stutter_equiv (a :: a :: l1) l2
-| stutter_right:
-    forall a l1 l2,
-      stutter_equiv l1 (a :: l2) ->
-      stutter_equiv l1 (a :: a :: l2)
-.
-Hint Constructors stutter_equiv.
-
-Lemma stutter_equiv_refl {A} :
-  forall (l : list A),
-    stutter_equiv l l.
-Proof.
-intros x. induction x; auto.
-Qed.
-
-Hint Extern 3 (stutter_equiv _ _) => reflexivity.
-
-Lemma stutter_equiv_sym {A} :
-  forall (l1 l2 : list A),
-    stutter_equiv l1 l2 ->
-    stutter_equiv l2 l1.
-Proof.
-intros x y Hxy. induction Hxy; auto.
-Qed.
-
-Lemma stutter_equiv_cons_inv {A} :
-  forall a1 a2 (l1 l2 : list A),
-    stutter_equiv (a1 :: l1) (a2 :: l2) ->
-    a1 = a2.
-Proof.
-intros a1 a2 l1 l2 H.
-remember (a1 :: l1) as l1'.
-remember (a2 :: l2) as l2'.
-generalize dependent l2. generalize dependent l1.
-revert a2. revert a1.
-rename l1' into l1. rename l2' into l2.
-induction H; intros a1' a2' l1' H1' l2' H2'; inversion H1'; subst; eauto.
-* inversion H2'; subst; eauto.
-* inversion H2'; subst; eauto.
-Qed.
-
-Lemma stutter_equiv_cons_left_inv {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv (a :: l1) l2 ->
-    exists l2', l2 = a :: l2'.
-Proof.
-intros a l1 l2 H.
-remember (a :: l1) as l1'.
-generalize dependent l1. revert a.
-rename l1' into l1.
-induction H; intros a' l' Heq; inversion Heq; subst; eauto.
-apply stutter_equiv_cons_inv in H. subst. eauto.
-Qed.
-
-Lemma stutter_equiv_cons_right_inv {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv l1 (a :: l2) ->
-    exists l1', l1 = a :: l1'.
-Proof.
-intros a l1 l2 H.
-apply stutter_equiv_sym in H.
-eapply stutter_equiv_cons_left_inv. eauto.
-Qed.
-
-Lemma stutter_equiv_cons_right_add_left {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv l1 (a :: l2) ->
-    stutter_equiv (a :: l1) (a :: l2).
-Proof.
-intros a l1 l2 H.
-destruct (stutter_equiv_cons_right_inv _ _ _ H) as [l1' H'].
-subst. auto.
-Qed.
-
-Lemma stutter_equiv_cons_left_add_right {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv (a :: l1) l2 ->
-    stutter_equiv (a :: l1) (a :: l2).
-Proof.
-intros a l1 l2 H.
-destruct (stutter_equiv_cons_left_inv _ _ _ H) as [l2' H'].
-subst. auto.
-Qed.
-
-Lemma stutter_equiv_nil_left_inv {A} :
-  forall (l: list A),
-    stutter_equiv nil l ->
-    l = nil.
-Proof.
-intros l2 H12. remember nil as l1.
-induction H12; try congruence.
-specialize (IHstutter_equiv Heql1). congruence.
-Qed.
-
-Lemma stutter_equiv_nil_right_inv {A} :
-  forall (l: list A),
-    stutter_equiv l nil ->
-    l = nil.
-Proof.
-intros l H. apply stutter_equiv_nil_left_inv.
-apply stutter_equiv_sym. assumption.
-Qed.
-
-Lemma stutter_equiv_cons_end_inv {A} :
-  forall a1 a2 (l1 l2 : list A),
-    stutter_equiv (l1 ++ a1 :: nil) (l2 ++ a2 :: nil) ->
-    a1 = a2.
-Proof.
-intros a1 a2 l1 l2 H.
-remember (l1 ++ a1 :: nil) as l1'.
-remember (l2 ++ a2 :: nil) as l2'.
-generalize dependent l2. generalize dependent l1.
-revert a2. revert a1.
-rename l1' into l1. rename l2' into l2.
-induction H; intros a1' a2' l1' H1' l2' H2'; inversion H1'; subst.
-* exfalso. destruct l1'; simpl in H1'; congruence.
-* destruct l1' as [|a1'' l1']; destruct l2' as [|a2'' l2']; simpl in *.
-  - congruence.
-  - exfalso. inversion H1'; subst.
-    apply stutter_equiv_nil_left_inv in H. subst.
-    destruct l2'; simpl in H2'; congruence.
-  - exfalso. inversion H2'; subst.
-    apply stutter_equiv_nil_right_inv in H. subst.
-    destruct l1'; simpl in H1'; congruence.
-  - inversion H1'; subst. inversion H2'; subst. eauto.
-* destruct l1' as [| a1'' l1'].
-  - exfalso. inversion H1.
-  - rewrite <- app_comm_cons in H1. inversion H1; subst.
-    destruct l2' as [| a2'' l2'].
-    + apply stutter_equiv_cons_inv in H. subst. eauto.
-    + rewrite <- app_comm_cons in H.
-      apply stutter_equiv_cons_inv in H. subst.
-      eauto.
-* destruct l2' as [| a2'' l2'].
-  - exfalso. inversion H2'.
-  - rewrite <- app_comm_cons in H2'. inversion H2'; subst.
-    destruct l1' as [| a1'' l1'].
-    + apply stutter_equiv_cons_inv in H. subst. eauto.
-    + rewrite <- app_comm_cons in H.
-      apply stutter_equiv_cons_inv in H. subst.
-      eauto.
-Qed.
-
-Lemma stutter_equiv_cons_end_left_inv {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv (l1 ++ a :: nil) l2 ->
-    exists l2', l2 = l2' ++ a :: nil.
-Proof.
-intros a l1 l2 H.
-remember (l1 ++ a :: nil) as l1'.
-generalize dependent l1. revert a.
-rename l1' into l1.
-induction H; intros a' l' Heq; eauto.
-* destruct l' as [| a'' l'].
-  - inversion Heq; subst.
-    apply stutter_equiv_nil_left_inv in H. subst. eauto.
-  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
-    destruct (IHstutter_equiv a' l' eq_refl) as [l0 Hl0].
-    subst.
-    exists (a'' :: l0). apply app_comm_cons.
-* destruct l' as [| a'' l'].
-  - exfalso. inversion Heq.
-  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
-    destruct (IHstutter_equiv a' l') as [l0 Hl0].
-    congruence. subst. eauto.
-* subst. destruct (IHstutter_equiv a' l' eq_refl) as [l0 Hl0].
-  exists (a :: l0). rewrite <- app_comm_cons. congruence.
-Qed.
-
-Lemma stutter_equiv_cons_end_right_inv {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv l1 (l2 ++ a :: nil) ->
-    exists l1', l1 = l1' ++ a :: nil.
-Proof.
-intros a l1 l2 H.
-apply stutter_equiv_sym in H.
-eapply stutter_equiv_cons_end_left_inv. eauto.
-Qed.
-
-Lemma stutter_equiv_cons_end_right_add_left {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv l1 (l2 ++ a :: nil) ->
-    stutter_equiv (l1 ++ a :: nil) (l2 ++ a :: nil).
-Proof.
-intros a l1 l2 H.
-remember (l2 ++ a :: nil) as l2'.
-generalize dependent l2. revert a.
-rename l2' into l2.
-induction H; intros a' l2' Heq.
-* exfalso. destruct l2'; simpl in Heq; congruence.
-* destruct l2' as [| a2'' l2'].
-  - inversion Heq; subst.
-    apply stutter_equiv_nil_right_inv in H. subst.
-    simpl. auto.
-  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
-    rewrite <- app_comm_cons. apply stutter_same.
-    eauto.
-* subst. rewrite <- app_comm_cons. rewrite <- app_comm_cons.
-  apply stutter_left. rewrite app_comm_cons. eauto.
-* destruct l2' as [|a2'' l2'].
-  - exfalso. inversion Heq.
-  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
-    apply stutter_right. eauto.
-Qed.
-
-Lemma stutter_equiv_cons_end_left_add_right {A} :
-  forall a (l1 l2: list A),
-    stutter_equiv (l1 ++ a :: nil) l2 ->
-    stutter_equiv (l1 ++ a :: nil) (l2 ++ a :: nil).
-Proof.
-intros a l1 l2 H.
-apply stutter_equiv_sym.
-apply stutter_equiv_cons_end_right_add_left.
-apply stutter_equiv_sym. trivial.
-Qed.
-
-Lemma stutter_equiv_trans_strong {A} :
-  forall n (l1 l2 l3: list A),
-    length l1 + length l2 + length l3 <= n ->
-    stutter_equiv l1 l2 ->
-    stutter_equiv l2 l3 ->
-    stutter_equiv l1 l3.
-Proof.
-intros n; induction n; intros l1 l2 l3 Hn H12 H23.
-* destruct l1; destruct l2; destruct l3; simpl in Hn; auto.
-* inversion H12; subst; simpl in Hn; auto.
-  - inversion H23; subst; simpl in Hn.
-    + apply stutter_same. apply (IHn l0 l4 l2); auto.
-    + apply (IHn (a :: l0) (a :: l1) l3);
-      auto using stutter_equiv_cons_right_add_left.
-    + apply stutter_right.
-      apply (IHn (a :: l0) (a :: l4) (a0 :: l2)); auto.
-  - apply stutter_left.
-    apply (IHn (a :: l0) l2 l3); auto.
-  - inversion H23; subst; simpl in Hn.
-    + apply (IHn l1 (a :: l4) (a :: l2));
-      auto using stutter_equiv_cons_left_add_right.
-    + apply (IHn l1 (a :: l4) l3); auto.
-    + apply stutter_right.
-      apply (IHn l1 (a :: a :: l4) (a0 :: l2)); auto.
-Qed.
-
-Lemma stutter_equiv_trans {A} :
-  forall (l1 l2 l3: list A),
-    stutter_equiv l1 l2 ->
-    stutter_equiv l2 l3 ->
-    stutter_equiv l1 l3.
-Proof.
-intros l1 l2 l3 H12 H23.
-apply (stutter_equiv_trans_strong (length l1 + length l2 + length l3) l1 l2 l3);
-trivial.
-Qed.
-
-Instance stutter_equiv_Equivalence {A} : Equivalence (@stutter_equiv A).
-Proof.
-constructor.
-* exact stutter_equiv_refl.
-* exact stutter_equiv_sym.
-* exact stutter_equiv_trans.
-Defined.
-
-Lemma stutter_equiv_in {A} :
-  forall (l1 l2 : list A),
-    stutter_equiv l1 l2 ->
-    forall a, In a l1 -> In a l2.
-Proof.
-intros l1 l2 H a Ha. induction H.
-* inversion Ha.
-* destruct Ha as [Ha | Ha].
-  - left; congruence.
-  - right; auto.
-* destruct Ha as [Ha | Ha].
-  - subst; apply IHstutter_equiv. left; trivial.
-  - destruct Ha as [Ha | Ha]; apply IHstutter_equiv.
-    + left; congruence.
-    + right; trivial.
-* right. auto.
-Qed.
-
-Lemma stutter_equiv_app_left {A} :
-  forall (l l1 l2: list A),
-    stutter_equiv l1 l2 ->
-    stutter_equiv (l ++ l1) (l ++ l2).
-Proof.
-intros l l1 l2 H. induction l; simpl; auto.
-Qed.
-
-Lemma stutter_equiv_app_right {A} :
-  forall (l l1 l2: list A),
-    stutter_equiv l1 l2 ->
-    stutter_equiv (l1 ++ l) (l2 ++ l).
-Proof.
-intros l. induction l; intros l1 l2 H.
-* repeat rewrite app_nil_r. assumption.
-* replace (a :: l) with ((a :: nil) ++ l) by reflexivity.
-  repeat rewrite app_assoc. apply IHl.
-  clear IHl l. induction H; simpl; auto.
-Qed.
-
-Lemma stutter_equiv_congruence {A} :
-  forall (l1 l2 l3 l4: list A),
-    stutter_equiv l1 l2 ->
-    stutter_equiv l3 l4 ->
-    stutter_equiv (l1 ++ l3) (l2 ++ l4).
-Proof.
-intros l1 l2 l3 l4 H12 H34.
-transitivity (l2 ++ l3).
-apply stutter_equiv_app_right; assumption.
-apply stutter_equiv_app_left; assumption.
-Qed.
-
-Lemma is_trace_stutter {A} {S: sys A} :
-  forall l1 l2,
-    is_trace S l1 ->
-    stutter_equiv l1 l2 ->
-    is_trace S l2.
-Proof.
-intros l1 l2 Htrace H12.
-induction H12.
-* inversion Htrace.
-* destruct l1.
-  - apply stutter_equiv_nil_left_inv in H12.
-    subst. auto.
-  - destruct l2. simpl; trivial.
-    destruct Htrace.
-    apply stutter_equiv_cons_inv in H12. subst.
-    split; auto.
-* apply IHstutter_equiv. apply (is_trace_tail a). assumption.
-* split; auto.
-Qed.
-
-Fixpoint repeat {A} (a: A) (n: nat) : list A :=
-match n with
-| O => nil
-| S n => a :: repeat a n
-end.
-
-Lemma repeat_length {A} :
-  forall (a: A) n, length (repeat a n) = n.
-Proof.
-intros a n. induction n; simpl in *; auto.
-Qed.
-
-Lemma is_trace_repeat {A} {S: sys A} :
-  forall a n, is_trace S (a :: repeat a n).
-Proof.
-intros a n. induction n; simpl.
-* trivial.
-* split; auto.
-Qed.
-
-Lemma is_trace_repeat_prefix {A} {S: sys A} :
-  forall (t: trace S) a n,
-    next S a (hd t) ->
-    is_trace S (a :: repeat a n ++ proj1_sig t).
-Proof.
-intros t a n H. induction n.
-* destruct t as [[| b l] Hl]; [destruct Hl |]. simpl. split.
-  + assumption.
-  + destruct l; trivial.
-* destruct t as [[| b l] Hl]; [destruct Hl |].
-  simpl proj1_sig in *. simpl in H.
-  unfold repeat. fold (repeat a n). split; auto.
-Qed.
-
-Lemma is_trace_repeat_remove_prefix {A} {S: sys A} :
-  forall a b n (l: list A),
-    is_trace S (repeat a n ++ b :: l) ->
-    is_trace S (b :: l).
-Proof.
-intros a b n l H.
-induction n.
-* assumption.
-* apply IHn; auto.
-  unfold repeat in H. fold (repeat a n) in H.
-  rewrite <- app_comm_cons in H. clear IHn.
-  destruct n.
-  + destruct H. assumption.
-  + unfold repeat in H. fold (repeat a n) in H.
-    rewrite <- app_comm_cons in H.
-    destruct H.
-    unfold repeat. fold (repeat a n).
-    rewrite <- app_comm_cons.
-    assumption.
-Qed.
-
-Lemma is_trace_repeat_two {A} {S: sys A} :
-  forall a b n m,
-    next S a b ->
-    is_trace S (a :: repeat a n ++ b :: repeat b m).
-Proof.
-intros a b n m H.
-pose proof (@is_trace_repeat _ S b m) as Htrace.
-pose (t := exist _ _ Htrace).
-replace (b :: repeat b m) with (proj1_sig t) by reflexivity.
-apply is_trace_repeat_prefix. assumption.
-Qed.
-
-Lemma stutter_equiv_repeat {A} :
-  forall (a: A) n,
-    Stutter.stutter_equiv (a :: nil) (a :: repeat a n).
-Proof.
-intros a n. induction n; simpl; auto.
-Qed.
-
-Lemma In_nth {A} :
-  forall a (l: list A),
-    In a l -> exists n, n < length l /\ forall b, nth n l b = a.
-Proof.
-intros a l H. generalize dependent a. induction l; intros a' H'.
-* destruct H'.
-* destruct H'.
-  + subst a'. exists 0. split; auto.
-  + destruct (IHl a' H) as [n [Hn Hnth]].
-    exists (S n). split; auto.
-Qed.
-
-Lemma repeat_nth {A} :
-  forall (a a0 : A) k n,
-    k < n ->
-    nth k (repeat a n) a0 = a.
-Proof.
-intros a a0 k n H.
-generalize dependent k. revert a. induction n; intros a k H; auto.
-simpl. destruct k; auto.
-Qed.
-
-Lemma stutter_one_inv {A} :
-  forall a (l: list A),
-    stutter_equiv l (a :: nil) ->
-    exists n, l = a :: repeat a n.
-Proof.
-intros a l H. induction l.
-* apply stutter_equiv_nil_left_inv in H. congruence.
-* assert (a0 = a). { apply stutter_equiv_cons_inv in H. assumption. }
-  subst a0. inversion H; subst.
-  + exists 0. apply stutter_equiv_nil_right_inv in H1. subst. reflexivity.
-  + destruct IHl as [n Heq]; trivial.
-    exists (S n). rewrite Heq. reflexivity.
-Qed.
-
-Lemma stutter_two_inv {A} :
-  forall a1 a2 (l: list A),
-    a1 <> a2 ->
-    stutter_equiv l (a1 :: a2 :: nil) ->
-    exists n1 n2, l = a1 :: repeat a1 n1 ++ a2 :: repeat a2 n2.
-Proof.
-intros a1 a2 l Ha Hl. induction l.
-* apply stutter_equiv_nil_left_inv in Hl. congruence.
-* assert (a = a1). { apply stutter_equiv_cons_inv in Hl. assumption. }
-  subst a. destruct l as [| a l].
-  + inversion Hl; subst.
-    - apply stutter_equiv_nil_left_inv in H0. congruence.
-    - congruence.
-  + inversion Hl; subst.
-    - destruct (stutter_one_inv _ _ H0) as [n2 Hn2].
-      exists 0. exists n2. simpl. congruence.
-    - destruct IHl as [n1 [n2 Heq]]; trivial.
-      exists (S n1). exists n2. simpl. congruence.
-    - congruence.
-Qed.
-
-Lemma stutter_equiv_app_left_inv {A} :
-  forall a (l1 l2 l3: list A),
-    stutter_equiv (l1 ++ a :: l2) l3 ->
-    exists l1' l2',
-      l3 = l1' ++ a :: l2'
-      /\ stutter_equiv (l1 ++ a :: nil) (l1' ++ a :: nil)
-      /\ stutter_equiv (a :: l2) (a :: l2').
-Proof.
-intros a l1 l2 l3 H.
-remember (l1 ++ a :: l2) as l1'.
-generalize dependent l2. revert a l1. rename l1' into l1.
-induction H; intros a' l1' l2' Heq.
-* exfalso. destruct l1'; inversion Heq.
-* destruct l1' as [|a1' l1'].
-  - inversion Heq; subst.
-    exists nil. exists l2. simpl. auto.
-  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
-    destruct (IHstutter_equiv a' l1' l2' eq_refl) as [l1'' [l2'' [? [? ?]]]].
-    subst.
-    exists (a1' :: l1''). exists l2''.
-    repeat rewrite <- app_comm_cons. auto.
-* destruct l1' as [|a1' l1'].
-  - inversion Heq; subst.
-    destruct (IHstutter_equiv a' nil l1 eq_refl) as [l1'' [l2'' [? [? ?]]]].
-    subst. exists l1''. exists l2''. auto.
-  - rewrite <- app_comm_cons in Heq. inversion Heq; subst.
-    destruct (stutter_equiv_cons_left_inv _ _ _ H) as [l2'' H2''].
-    subst.
-    destruct (IHstutter_equiv a' l1' l2' H2) as [l1'' [l0 [? [? ?]]]].
-    exists l1''. exists l0. splits; trivial.
-    { destruct l1'' as [|a1'' l1''].
-      * inversion H0; subst. clear H0.
-        destruct (stutter_one_inv _ _ H1) as [n Hn].
-        rewrite <- app_comm_cons. rewrite Hn.
-        apply stutter_left. symmetry. apply stutter_equiv_repeat.
-      * rewrite <- app_comm_cons in H0. inversion H0; subst.
-        repeat rewrite <- app_comm_cons.
-        rewrite <- app_comm_cons in H1.
-        apply stutter_equiv_cons_right_add_left. trivial.
-    }
-* subst. destruct l1' as [|a1' l1'].
-  - assert (a' = a). { apply stutter_equiv_cons_inv in H. assumption. }
-    subst. exists (a :: nil). exists l2. simpl; auto.
-  - rewrite <- app_comm_cons in H.
-    assert (a1' = a). { apply stutter_equiv_cons_inv in H. assumption. }
-    subst.
-    destruct (IHstutter_equiv a' (a :: l1') l2' eq_refl)
-      as [l1'' [l2'' [? [? ?]]]].
-    { destruct l1'' as [|a1'' l1''].
-      * inversion H0; subst. clear H0. simpl in *.
-        destruct (stutter_one_inv _ _ H1) as [n Hn].
-        exists (a' :: nil). exists l2''.
-        splits; trivial.
-        simpl. rewrite Hn. apply stutter_right.
-        symmetry. apply stutter_equiv_repeat.
-      * rewrite <- app_comm_cons in H0. inversion H0; subst. clear H0.
-        exists (a1'' :: a1'' :: l1''). exists l2''.
-        repeat rewrite <- app_comm_cons. auto.
-    }
-Qed.
-
-Lemma stutter_equiv_app_right_inv {A} :
-  forall a (l1 l2 l3: list A),
-    stutter_equiv l1 (l2 ++ a :: l3) ->
-    exists l2' l3',
-      l1 = l2' ++ a :: l3'
-      /\ stutter_equiv (l2' ++ a :: nil) (l2 ++ a :: nil)
-      /\ stutter_equiv (a :: l3') (a :: l3).
-Proof.
-intros a l1 l2 l3 H.
-symmetry in H.
-destruct (stutter_equiv_app_left_inv _ _ _ _ H) as [l2' [l3' [? [? ?]]]].
-exists l2'. exists l3'. symmetry in H1. symmetry in H2. auto.
-Qed.
-
-End Stutter.
-
 Definition set_included {A} (R: relation A) (S1 S2: A -> Prop) :=
   forall s1, S1 s1 -> exists s2, S2 s2 /\ R s1 s2.
 
@@ -792,15 +314,33 @@ constructor.
 Qed.
 
 Definition stutter {A} {S: sys A} (t1 t2: trace S) : Prop :=
-  lift_trace Stutter.stutter_equiv t1 t2.
+  lift_trace stutter_equiv t1 t2.
 
 Hint Extern 3 (stutter _ _) => compute; reflexivity.
 
+Lemma stutter_stutter_equiv {A} {S: sys A}:
+  forall (t1 t2: trace S),
+    stutter t1 t2 -> stutter_equiv (proj1_sig t1) (proj1_sig t2).
+Proof.
+intros t1 t2 H. assumption.
+Qed.
+
+Ltac simpl_stutter_ctx :=
+  match goal with
+    | H: stutter _ _ |- _ =>
+      apply stutter_stutter_equiv in H;
+      simpl proj1_sig in H;
+      simpl_stutter_ctx
+    | _ => idtac
+  end.
+
+Ltac simpl_stutter := unfold stutter; unfold lift_trace; simpl proj1_sig.
+
 Lemma stutter_repeat {A} {S: sys A} :
   forall (a: A) n,
-    stutter (trace_one S a) (exist _ _ (Stutter.is_trace_repeat a n)).
+    stutter (trace_one S a) (exist _ _ (is_trace_repeat a n)).
 Proof.
-intros a n. apply Stutter.stutter_equiv_repeat.
+intros a n. apply stutter_equiv_repeat.
 Qed.
 
 Lemma set_included_subrel {A} :
@@ -972,7 +512,7 @@ Proof.
 intros a1 l1 l2 Ha1 H.
 rewrite same_view_characterization in H.
 destruct H as [Hlength HR].
-destruct (Stutter.In_nth _ _ Ha1) as [n [Hn Hna1]].
+destruct (In_nth _ _ Ha1) as [n [Hn Hna1]].
 exists (nth n l2 a1). split.
 apply nth_In. congruence.
 rewrite <- (Hna1 a1) at 1.
@@ -1050,9 +590,9 @@ Qed.
 
 Lemma view_stutter_aux {A} {R: relation A} {E: Equivalence R}:
   forall (t1 t2: list A),
-    Stutter.stutter_equiv t1 t2 ->
+    stutter_equiv t1 t2 ->
     exists t0,
-      Stutter.stutter_equiv t1 t0 /\
+      stutter_equiv t1 t0 /\
       same_view R t0 t2.
 Proof.
 intros t1 t2 H. induction H.
@@ -1063,8 +603,8 @@ intros t1 t2 H. induction H.
   exists l0. split; auto.
 * destruct IHstutter_equiv as [l0 [Hl1 Hl2]].
   exists (a :: l0). split.
-  + destruct (Stutter.stutter_equiv_cons_right_inv _ _ _ H). subst.
-    destruct (Stutter.stutter_equiv_cons_left_inv _ _ _ Hl1). subst.
+  + destruct (stutter_equiv_cons_right_inv _ _ _ H). subst.
+    destruct (stutter_equiv_cons_left_inv _ _ _ Hl1). subst.
     auto.
   + destruct l0; destruct Hl2. deep_splits; trivial. reflexivity.
 Qed.
@@ -1078,48 +618,48 @@ Lemma view_stutter {A} {S: sys A} {R: relation A} {E: Equivalence R}:
 Proof.
 intros [t1 H1] [t2 H2] H.
 destruct (view_stutter_aux _ _ H) as [t0 [Ht1t0 Ht0t2]].
-exists (exist _ _ (Stutter.is_trace_stutter _ _ H1 Ht1t0)).
+exists (exist _ _ (is_trace_stutter _ _ H1 Ht1t0)).
 split; assumption.
 Qed.
 
 Lemma stutter_equiv_one_view {A} (R: relation A) {E: Equivalence R} :
   forall (l: list A) a1 a2,
     R a1 a2 ->
-    Stutter.stutter_equiv (a2 :: nil) (a2 :: l) ->
+    stutter_equiv (a2 :: nil) (a2 :: l) ->
     exists t0 : list A,
-      Stutter.stutter_equiv (a1 :: nil) t0 /\ same_view R t0 (a2 :: l).
+      stutter_equiv (a1 :: nil) t0 /\ same_view R t0 (a2 :: l).
 Proof.
 intro l. induction l; intros a1 a2 Ha1a2 Hl.
 * exists (a1 :: nil). deep_splits; trivial. reflexivity.
 * assert (a = a2).
   { inversion Hl; subst.
-    - apply (Stutter.stutter_equiv_nil_left_inv) in H0. congruence.
+    - apply (stutter_equiv_nil_left_inv) in H0. congruence.
     - trivial. } subst.
-  assert (Stutter.stutter_equiv (a2 :: nil) (a2 :: l)) as H'.
+  assert (stutter_equiv (a2 :: nil) (a2 :: l)) as H'.
   { inversion Hl; subst.
-    - apply (Stutter.stutter_equiv_nil_left_inv) in H0. congruence.
+    - apply (stutter_equiv_nil_left_inv) in H0. congruence.
     - assumption. }
   destruct (IHl _ _ Ha1a2 H') as [l0 [H1l0 Hl02]].
   exists (a1 :: l0). deep_splits; trivial.
-  apply Stutter.stutter_equiv_cons_left_add_right. assumption.
+  apply stutter_equiv_cons_left_add_right. assumption.
 Qed.
 
 Lemma repeat_same_view {A} (R: relation A) {E: Equivalence R}:
   forall a1 a2 (l: list A),
-    Stutter.stutter_equiv l (a1 :: nil) ->
+    stutter_equiv l (a1 :: nil) ->
     R a1 a2 ->
-    same_view R l (Stutter.repeat a2 (length l)).
+    same_view R l (repeat a2 (length l)).
 Proof.
 intros a1 a2 l Hl HR.
 rewrite same_view_characterization. split.
-* symmetry. apply Stutter.repeat_length.
+* symmetry. apply repeat_length.
 * intros a n H1 H2.
-  rewrite Stutter.repeat_nth; trivial.
-  destruct (Stutter.stutter_one_inv _ _ Hl) as [m Heq].
-  assert (l = Stutter.repeat a1 (S m)) as Hlm by assumption.
-  assert (length l = S m). { rewrite Hlm. apply Stutter.repeat_length. }
+  rewrite repeat_nth; trivial.
+  destruct (stutter_one_inv _ _ Hl) as [m Heq].
+  assert (l = repeat a1 (S m)) as Hlm by assumption.
+  assert (length l = S m). { rewrite Hlm. apply repeat_length. }
   rewrite Hlm.
-  rewrite Stutter.repeat_nth; auto.
+  rewrite repeat_nth; auto.
 Qed.
 
 Lemma repeat_two_same_view {A} (R: relation A) {E: Equivalence R}:
@@ -1128,8 +668,8 @@ Lemma repeat_two_same_view {A} (R: relation A) {E: Equivalence R}:
     R a2 a2' ->
     View.same_view
       R
-      (Stutter.repeat a1  n1 ++ a2  :: Stutter.repeat a2  n2)
-      (Stutter.repeat a1' n1 ++ a2' :: Stutter.repeat a2' n2).
+      (repeat a1  n1 ++ a2  :: repeat a2  n2)
+      (repeat a1' n1 ++ a2' :: repeat a2' n2).
 Proof.
 intros a1 a2 a1' a2' n1 n2 H1 H2. induction n1.
 * simpl. split; trivial.
@@ -1206,15 +746,15 @@ destruct Ht1t2 as [t2' [Ht2t2' Ht1t2']]. reflexivity.
 destruct t2 as [l2 Hl2]. destruct t2' as [l2' Hl2'].
 unfold view in Ht2t2'. unfold lift_trace in Ht2t2'. simpl in *.
 apply (View.same_view_in _ l2').
-apply (Stutter.stutter_equiv_in _ _ Ht1t2' s1 Hs1t1).
+apply (stutter_equiv_in _ _ Ht1t2' s1 Hs1t1).
 symmetry. assumption.
 Qed.
 
 Lemma set_included_view_same {A} {R: relation A} {E: Equivalence R}:
   forall a (l1 l2: list A),
-    set_included Stutter.stutter_equiv
+    set_included stutter_equiv
                  (same_view R l1) (same_view R l2) ->
-    set_included Stutter.stutter_equiv
+    set_included stutter_equiv
                  (same_view R (a :: l1)) (same_view R (a :: l2)).
 Proof.
 intros a l1 l2 H l Hl.
@@ -1227,9 +767,9 @@ Qed.
 
 Lemma set_equiv_view_same {A} {R: relation A} {E: Equivalence R}:
   forall a (l1 l2: list A),
-    set_equiv Stutter.stutter_equiv
+    set_equiv stutter_equiv
               (same_view R l1) (same_view R l2) ->
-    set_equiv Stutter.stutter_equiv
+    set_equiv stutter_equiv
               (same_view R (a :: l1)) (same_view R (a :: l2)).
 Proof.
 intros a l1 l2 [H H'].
@@ -1239,9 +779,9 @@ Qed.
 Lemma set_included_view_cons_right_add_right
       {A} {R: relation A} {E: Equivalence R}:
   forall a (l1 l2: list A),
-    set_included Stutter.stutter_equiv
+    set_included stutter_equiv
                  (same_view R l1) (same_view R (a :: l2)) ->
-    set_included Stutter.stutter_equiv
+    set_included stutter_equiv
                  (same_view R l1) (same_view R (a :: a :: l2)).
 Proof.
 intros a l1 l2 H l Hl.
@@ -1249,7 +789,7 @@ specialize (H l Hl).
 destruct H as [l0 [Hl2l0 Hll0]].
 destruct l0 as [| a0 l0]; [destruct Hl2l0 |].
 destruct Hl2l0 as [Haa0 Hl2l0].
-destruct (Stutter.stutter_equiv_cons_right_inv _ _ _ Hll0) as [l' ?].
+destruct (stutter_equiv_cons_right_inv _ _ _ Hll0) as [l' ?].
 subst l.
 destruct l1 as [| a1 l1]; [destruct Hl |].
 destruct Hl as [Ha1a0 Hl1l'].
@@ -1259,9 +799,9 @@ Qed.
 Lemma set_included_view_cons_left_add_right
       {A} {R: relation A} {E: Equivalence R}:
   forall a (l1 l2: list A),
-    set_included Stutter.stutter_equiv
+    set_included stutter_equiv
                  (same_view R (a :: l1)) (same_view R l2) ->
-    set_included Stutter.stutter_equiv
+    set_included stutter_equiv
                  (same_view R (a :: l1)) (same_view R (a :: l2)).
 Proof.
 intros a1 l1 l2 H l Hl.
@@ -1270,13 +810,13 @@ specialize (H (a :: l) Hl).
 destruct H as [l0 [Hl2l0 Hll0]].
 destruct Hl as [Ha1a Hl1l].
 exists (a :: l0). deep_splits; trivial.
-apply Stutter.stutter_equiv_cons_left_add_right. trivial.
+apply stutter_equiv_cons_left_add_right. trivial.
 Qed.
 
 Lemma view_set_included_view {A} {R: relation A} {E: Equivalence R} :
   forall (l1 l2: list A),
     same_view R l1 l2 ->
-    set_included Stutter.stutter_equiv (same_view R l1) (same_view R l2).
+    set_included stutter_equiv (same_view R l1) (same_view R l2).
 Proof.
 intro l1; induction l1; intros l2 H l Hl.
 * destruct l2; [| destruct H].
@@ -1296,7 +836,7 @@ Qed.
 Lemma view_set_equiv_view {A} {R: relation A} {E: Equivalence R} :
   forall (l1 l2: list A),
     same_view R l1 l2 ->
-    set_equiv Stutter.stutter_equiv (same_view R l1) (same_view R l2).
+    set_equiv stutter_equiv (same_view R l1) (same_view R l2).
 Proof.
 intros l1 l2 H. split; apply view_set_included_view.
 trivial. symmetry; trivial.
@@ -1353,7 +893,7 @@ Qed.
 
 Lemma same_view_repeats_inv {A} (R: relation A) {E: Equivalence R}:
   forall n1 n2 x y (l: list A),
-    View.same_view R l (x :: Stutter.repeat x n1 ++ y :: Stutter.repeat y n2) ->
+    View.same_view R l (x :: repeat x n1 ++ y :: repeat y n2) ->
     exists (x' y' : A) (l' : list A),
       l = x' :: l' ++ y' :: nil /\ R y y'.
 Proof.
@@ -1670,7 +1210,7 @@ apply exploit_obs_eq_one in H12.
 destruct H12 as [t1 [t2 [Ht2s2 [Ht2t1 Hs1t1]]]].
 destruct t2 as [[| s l2] Hl2]; [destruct Hl2 |].
 compute in Ht2s2. subst s.
-destruct (Stutter.stutter_equiv_cons_left_inv _ _ _ Hs1t1) as [l' ?].
+destruct (stutter_equiv_cons_left_inv _ _ _ Hs1t1) as [l' ?].
 destruct t1 as [l1 ?]. simpl in H. subst.
 destruct Ht2t1. symmetry. assumption.
 Qed.
@@ -1719,10 +1259,10 @@ Lemma replicate_trace_bottom {A} {S: sys A} :
       /\ stutter (trace_one S a) t'.
 Proof.
 intros a t.
-exists (exist _ _ (Stutter.is_trace_repeat a (length (proj1_sig t) - 1))).
+exists (exist _ _ (is_trace_repeat a (length (proj1_sig t) - 1))).
 splits.
 * reflexivity.
-* rewrite view_bottom_trace. simpl. rewrite Stutter.repeat_length.
+* rewrite view_bottom_trace. simpl. rewrite repeat_length.
   destruct t as [[| b l] Hl]; [destruct Hl |]. auto.
 * apply stutter_repeat.
 Qed.
@@ -1937,21 +1477,20 @@ Proof.
 intros [l Hl]. induction l.
 * destruct Hl.
 * destruct l as [| b l].
-  - clear IHl. left. unfold trace_one. simpl.
-    unfold stutter. unfold lift_trace. reflexivity.
+  - clear IHl. simpl_stutter. auto.
   - simpl. destruct Hl as [Hab Hbl].
     specialize (IHl Hbl). destruct IHl as [IHl | IHl].
     + { simpl in IHl. destruct Hab as [Hab | Hab]; subst b.
-        * left. apply Stutter.stutter_left. assumption.
-        * right. apply Stutter.stutter_same. assumption.
+        * left. apply stutter_left. assumption.
+        * right. apply stutter_same. assumption.
       }
     + { simpl in IHl. destruct Hab as [Hab | Hab]; subst b.
-        * right. apply Stutter.stutter_left. assumption.
-        * right. apply Stutter.stutter_same.
+        * right. apply stutter_left. assumption.
+        * right. apply stutter_same.
           transitivity (step a :: step (step a) :: nil).
           + assumption.
           + rewrite <- step_projection.
-            apply Stutter.stutter_left. reflexivity.
+            apply stutter_left. reflexivity.
       }
 Qed.
 
@@ -2002,7 +1541,7 @@ simpl. destruct (bool_dec p p').
         destruct Htt0' as [Htt0' _].
         destruct (View.included_view_R _ _ _ Htt0' a Ha) as [a' [Ha' Haa']].
         transitivity a'; trivial.
-        pose proof (Stutter.stutter_equiv_in _ _ H a' Ha') as H0.
+        pose proof (stutter_equiv_in _ _ H a' Ha') as H0.
         destruct H0.
         + rewrite H0. reflexivity.
         + destruct H0.
@@ -2013,7 +1552,7 @@ simpl. destruct (bool_dec p p').
     * destruct t0' as [[| a0 l0] Hl0]; [destruct Hl0 |].
       simpl in H. simpl proj1_sig. compute in Ht0's'. fold s' in Ht0's'.
       subst.
-      apply (Stutter.stutter_equiv_in (proj1_sig (trace_step s'))).
+      apply (stutter_equiv_in (proj1_sig (trace_step s'))).
       + symmetry. assumption.
       + right. simpl. eauto.
   }
@@ -2048,7 +1587,7 @@ Lemma stutter_one_stutter_view {A} {S: sys A} {R: relation A} {E: Equivalence R}
 Proof.
 intros s s' l HR Hl Hstutter.
 pose (t' := exist _ _
-            (@Stutter.is_trace_repeat _ S s' (length l))).
+            (@is_trace_repeat _ S s' (length l))).
 exists (View.view R t'). split.
 * exists t'. split; reflexivity.
 * assert (stutter (trace_one S s') t')
@@ -2080,27 +1619,24 @@ intros s s' HR HR'.
 intros v [t [Hv Hts]]. subst v.
 destruct (stutter_password_checker t) as [H | H].
 - destruct t as [[| a l] Hl]; [destruct Hl |].
-  compute in Hts. subst a. simpl in H.
+  compute in Hts. subst a. simpl_stutter_ctx.
   apply stutter_one_stutter_view; trivial.
 - destruct t as [[| a l] Hl]; [destruct Hl |].
-  compute in Hts. subst a.
-  simpl in H.
-  unfold trace_step in H. unfold trace_one in H. unfold trace_cons in H.
-  unfold stutter in H. unfold lift_trace in H. simpl in H.
+  compute in Hts. subst a. simpl_stutter_ctx.
   { case_eq (time s); intro Htime'.
     * pose proof (step_time_true_eq _ Htime') as Hstep.
       rewrite <- Hstep in H. clear Hstep.
-      assert (Stutter.stutter_equiv (s :: l) (s :: nil)) as H'.
+      assert (stutter_equiv (s :: l) (s :: nil)) as H'.
       { transitivity (s :: s :: nil). assumption. auto. }
       clear H. apply stutter_one_stutter_view; trivial.
     * pose proof (step_time_false_neq _ Htime') as Hstep.
-      destruct (Stutter.stutter_two_inv _ _ _ Hstep H) as [n1 [n2 Heq]].
+      destruct (stutter_two_inv _ _ _ Hstep H) as [n1 [n2 Heq]].
       clear Hstep.
       pose (l' :=
-              s' :: Stutter.repeat s' n1
-              ++ step s' :: Stutter.repeat (step s') n2).
+              s' :: repeat s' n1
+              ++ step s' :: repeat (step s') n2).
       assert (is_trace password_checker l') as Htrace'.
-      { apply Stutter.is_trace_repeat_two. right; reflexivity. }
+      { apply is_trace_repeat_two. right; reflexivity. }
       pose (t' := exist _ _ Htrace').
       exists (View.view R t'). split.
       + exists t'. split; reflexivity.
@@ -2203,7 +1739,7 @@ Lemma SP_one_make_trace {A} (R : relation A) {E : Equivalence R} (S : sys A):
       is_trace S (s' :: l' ++ a' :: nil)
       /\ R s a'
       /\ exists l'',
-           Stutter.stutter_equiv (s :: s :: nil) l''
+           stutter_equiv (s :: s :: nil) l''
            /\ View.same_view R l'' (s' :: l' ++ a' :: nil)
            /\ is_trace S l''.
 Proof.
@@ -2224,7 +1760,7 @@ Lemma SP_two_make_trace {A} (R : relation A) {E : Equivalence R}
       is_trace S2 (s' :: l' ++ a' :: nil)
       /\ R a a'
       /\ exists l'',
-           Stutter.stutter_equiv (s :: a :: nil) l''
+           stutter_equiv (s :: a :: nil) l''
            /\ View.same_view R l'' (s' :: l' ++ a' :: nil)
            /\ is_trace S2 l''.
 Proof.
@@ -2235,7 +1771,7 @@ pose (t0 := exist _ _ Htrace0).
 apply (exploit_obs_eq t0) in HSP; try reflexivity.
 destruct HSP as [t0'' [t0' [Ht0's' [Ht0't0'' Ht0t0'']]]].
 symmetry in Ht0t0''.
-pose proof (Stutter.stutter_two_inv _ _ _ Hneq Ht0t0'') as H.
+pose proof (stutter_two_inv _ _ _ Hneq Ht0t0'') as H.
 destruct H as [n1 [n2 Hn]].
 unfold View.view in Ht0't0''. unfold lift_trace in Ht0't0''.
 rewrite Hn in Ht0't0''.
@@ -2268,7 +1804,7 @@ Lemma SP_make_trace {A} (R : relation A) {E : Equivalence R} (S1 S2 : sys A):
       is_trace (sys_union S1 S2) (s' :: l' ++ a' :: nil)
       /\ R a a'
       /\ exists l'',
-           Stutter.stutter_equiv (s :: a :: nil) l''
+           stutter_equiv (s :: a :: nil) l''
            /\ View.same_view R l'' (s' :: l' ++ a' :: nil)
            /\ is_trace (sys_union S1 S2) l''.
 Proof.
@@ -2488,7 +2024,7 @@ split; intro H.
   pose (tss  := trace_cons s (trace_one S s)  (next_refl _ _ _)).
   pose (tss' := trace_cons s (trace_one S s') Hnext).
   assert (stutter ts tss) as Hstutter.
-  { apply Stutter.stutter_right. reflexivity. }
+  { apply stutter_right. reflexivity. }
   assert (View.view R tss tss') as Hview.
   { deep_splits; trivial. reflexivity. }
   specialize (H _ _ _ Hstutter Hview).
@@ -2496,12 +2032,12 @@ split; intro H.
   destruct l0 as [|a0 l0]; [destruct H0|].
   destruct Hview0 as [Hsa0 Hview0].
   destruct l0; [|destruct Hview0].
-  compute in Hstutter0.
+  simpl_stutter_ctx.
   assert (a0 = s).
-  { apply Stutter.stutter_equiv_cons_inv in Hstutter0. assumption. }
+  { apply stutter_equiv_cons_inv in Hstutter0. assumption. }
   assert (a0 = s').
   { assert (In s' (a0 :: nil)) as HIn.
-    { symmetry in Hstutter0. apply (Stutter.stutter_equiv_in _ _ Hstutter0).
+    { symmetry in Hstutter0. apply (stutter_equiv_in _ _ Hstutter0).
       compute; tauto.
     }
     compute in HIn; tauto.
@@ -2512,12 +2048,12 @@ split; intro H.
             is_trace S l1 ->
             is_trace S l2 ->
             is_trace S l3 ->
-            Stutter.stutter_equiv l1 l2 ->
+            stutter_equiv l1 l2 ->
             View.same_view R l2 l3 ->
             exists l2',
               is_trace S l2'
               /\ View.same_view R l1 l2'
-              /\ Stutter.stutter_equiv l2' l3)
+              /\ stutter_equiv l2' l3)
     as Hstrong.
   { intro n; induction n; intros l1 l2 l3 Hn H1 H2 H3 Hstutter Hview.
     * exfalso. destruct l1; [destruct H1|]. auto.
@@ -2527,10 +2063,10 @@ split; intro H.
         destruct Hview as [Haa3 Hview].
         destruct l1 as [|a1 l1]; destruct l2 as [|a2 l2].
         - destruct l3; [| destruct Hview].
-          exists (a3 :: nil). compute. auto.
-        - exfalso. apply Stutter.stutter_equiv_nil_left_inv in Hstutter.
+          exists (a3 :: nil). deep_splits; auto.
+        - exfalso. apply stutter_equiv_nil_left_inv in Hstutter.
           congruence.
-        - exfalso. apply Stutter.stutter_equiv_nil_right_inv in Hstutter.
+        - exfalso. apply stutter_equiv_nil_right_inv in Hstutter.
           congruence.
         - destruct H1 as [Hnext1 H1]. destruct H2 as [Hnext2 H2].
           destruct l3 as [|a3' l3]; [destruct Hview|].
@@ -2540,7 +2076,7 @@ split; intro H.
           exists (a3 :: l2').
           { deep_splits; auto.
             destruct l2' as [|a2' l2']; [destruct Hview2'|].
-            apply Stutter.stutter_equiv_cons_inv in Hstutter2'. subst.
+            apply stutter_equiv_cons_inv in Hstutter2'. subst.
             split; trivial.
           }
       + destruct H1 as [Hnext1 H1]. simpl in Hn.
@@ -2550,7 +2086,7 @@ split; intro H.
         destruct Hview2' as [Haa2' Hview2'].
         destruct l3 as [|a3 l3]; [destruct H3|].
         assert (a2' = a3).
-        { apply Stutter.stutter_equiv_cons_inv in Hstutter2'. assumption. }
+        { apply stutter_equiv_cons_inv in Hstutter2'. assumption. }
         subst.
         exists (a3 :: a3 :: l2'). deep_splits; auto.
       + destruct H2 as [Hnext2 H2]. simpl in Hn.
@@ -2563,13 +2099,13 @@ split; intro H.
           as [l2' [H2' [Hview2' Hstutter2']]]; auto.
         destruct l2' as [|a2' l2']; [destruct H2'|].
         assert (a2' = a3').
-        { apply Stutter.stutter_equiv_cons_inv in Hstutter2'. assumption. }
+        { apply stutter_equiv_cons_inv in Hstutter2'. assumption. }
         subst.
         destruct l1 as [|a1 l1]; [destruct H1|].
         destruct Hview2' as [Ha1a3 Hview2'].
         assert (a3 = a3').
         { apply H; trivial.
-          apply Stutter.stutter_equiv_cons_inv in Hstutter. subst.
+          apply stutter_equiv_cons_inv in Hstutter. subst.
           transitivity a; trivial. symmetry; trivial. }
         subst.
         exists (a3' :: l2'). deep_splits; auto.

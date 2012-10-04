@@ -48,3 +48,9 @@ deep_splits. (* 4 goals *)
 Qed.
 
 End TestTactics.
+
+(* Useful tactics when dealing with omega. *)
+Require Export Omega.
+Hint Extern 3 (_ <= _) => first [omega | simpl; omega].
+Hint Extern 3 (_ = _) => first [omega | simpl; omega].
+Hint Extern 3 => exfalso; first [omega | simpl in *|-; omega].
