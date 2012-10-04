@@ -1,7 +1,7 @@
 MODULES := MyTactics \
 	   Lattice Kleene \
            NatLattice SetLattice RelLattice PERLattice ERLattice \
-           Stutter Robustness
+           Stutter View Robustness
 
 VS 	:= $(MODULES:%=%.v)
 

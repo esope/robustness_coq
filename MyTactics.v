@@ -1,3 +1,5 @@
+Require Import RelationClasses.
+
 Ltac splits :=
   match goal with
     | |- _ /\ _ => split; splits
@@ -54,3 +56,11 @@ Require Export Omega.
 Hint Extern 3 (_ <= _) => first [omega | simpl; omega].
 Hint Extern 3 (_ = _) => first [omega | simpl; omega].
 Hint Extern 3 => exfalso; first [omega | simpl in *|-; omega].
+
+(* Useful tactic when dealing with equivelence relations. *)
+Ltac equivalence_reflexivity :=
+  match goal with
+    | E: Equivalence ?R |- ?R _ _ => reflexivity
+  end.
+Hint Extern 3 => equivalence_reflexivity.
+Hint Extern 3 (_ = _) => reflexivity.

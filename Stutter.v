@@ -341,18 +341,6 @@ Proof.
 intros a n. induction n; simpl in *; auto.
 Qed.
 
-Lemma In_nth {A} :
-  forall a (l: list A),
-    In a l -> exists n, n < length l /\ forall b, nth n l b = a.
-Proof.
-intros a l H. generalize dependent a. induction l; intros a' H'.
-* destruct H'.
-* destruct H'.
-  + subst a'. exists 0. split; auto.
-  + destruct (IHl a' H) as [n [Hn Hnth]].
-    exists (S n). split; auto.
-Qed.
-
 Lemma repeat_nth {A} :
   forall (a a0 : A) k n,
     k < n ->
