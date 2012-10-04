@@ -12,10 +12,18 @@ http://www.cis.upenn.edu/~stevez/papers/ZM01b.pdf
 
 *)
 
+Require Import MyTactics.
 Require Import Relations.
 Require Import List.
 Require Import RelationClasses.
 Require Import Omega.
+
+Ltac equivalence_reflexivity :=
+  match goal with
+    | E: Equivalence ?R |- ?R _ _ => reflexivity
+  end.
+Hint Extern 3 => equivalence_reflexivity.
+Hint Extern 3 (_ = _) => reflexivity.
 
 Record sys (state: Type) :=
 { next : relation state
@@ -23,6 +31,12 @@ Record sys (state: Type) :=
 }.
 
 Arguments next [state] _ _ _.
+
+Ltac sys_next_reflexivity :=
+  match goal with
+    | S: sys _ |- next ?S _ _ => apply next_refl
+  end.
+Hint Extern 3 => sys_next_reflexivity.
 
 Lemma sys_union_next_refl:
   forall A (s1 s2: sys A),
@@ -59,6 +73,8 @@ match l with
 | a1 :: ((a2 :: _) as l2) => next S a1 a2 /\ is_trace S l2
 end.
 
+Hint Extern 3 (is_trace _ _) => compute; trivial.
+
 Lemma is_trace_map_included {A} :
   forall (l: list A) (S1 S2: sys A),
     sys_included S1 S2 ->
@@ -67,9 +83,8 @@ Lemma is_trace_map_included {A} :
 Proof.
 intros l S1 S2 Hincl H. induction l.
 * compute. trivial.
-* destruct l as [|b l].
-  + compute. trivial.
-  + destruct H as [Hab H]. split; auto.
+* destruct l as [|b l]; auto.
+  destruct H as [Hab H]. split; auto.
 Qed.
 
 Lemma is_trace_tail {A} {S: sys A}:
@@ -99,13 +114,12 @@ Lemma is_trace_app_inv_head {A} {S: sys A}:
     is_trace S (l1 ++ a :: l2) ->
     is_trace S (l1 ++ a :: nil).
 Proof.
-intros a l1. revert a. induction l1; intros a2 l2 H.
-* compute. trivial.
-* rewrite <- app_comm_cons in H. destruct l1 as [|a1 l1].
-  + destruct H. rewrite <- app_comm_cons. split; eauto.
-  + rewrite <- app_comm_cons in H. destruct H as [Haa1 H].
-    rewrite app_comm_cons in H.
-    rewrite <- app_comm_cons. split; eauto.
+intros a l1. revert a. induction l1; intros a2 l2 H; auto.
+rewrite <- app_comm_cons in H. destruct l1 as [|a1 l1].
++ destruct H. rewrite <- app_comm_cons. split; eauto.
++ rewrite <- app_comm_cons in H. destruct H as [Haa1 H].
+  rewrite app_comm_cons in H.
+  rewrite <- app_comm_cons. split; eauto.
 Qed.
 
 Definition trace {A} (S: sys A) := { l: list A | is_trace S l }.
@@ -124,6 +138,11 @@ end.
 Definition is_trace_from {A} {S: sys A} (tr: trace S) (s : A) : Prop :=
   hd tr = s.
 
+Ltac is_trace_from_reflexivity :=
+  match goal with
+    | |- is_trace_from _ _ => reflexivity
+  end.
+Hint Extern 3 => is_trace_from_reflexivity.
 
 Definition trace_cons {A} {S: sys A}
            (s : A) (t : trace S) (H: next S s (hd t)) : trace S.
@@ -141,9 +160,7 @@ Lemma trace_cons_is_trace_from {A} {S: sys A}:
     is_trace_from (trace_cons s t H) s.
 Proof.
 intros s t H.
-destruct t as [[| a l] Hl].
-destruct Hl.
-reflexivity.
+destruct t as [[| a l] Hl]; auto.
 Qed.
 
 Lemma is_trace_app {A} {S: sys A}:
@@ -157,8 +174,7 @@ intros a1 a2 l1. revert a1 a2.
 induction l1; intros a1 a2 l2 H1 Hnext H2.
 * split; trivial.
 * rewrite <- app_comm_cons in H1. destruct l1 as [| a1' l1].
-  + destruct H1 as [Haa1 _].
-    split; trivial. split; trivial.
+  + destruct H1 as [Haa1 _]. deep_splits; trivial.
   + rewrite <- app_comm_cons in H1. destruct H1 as [Haa1' H1].
     rewrite <- app_comm_cons. rewrite <- app_comm_cons. split; trivial.
     apply IHl1; trivial.
@@ -187,7 +203,7 @@ Instance lift_Equivalence
 Proof.
 unfold lift_trace.
 constructor.
-* intros [? ?]. simpl. reflexivity.
+* intros [? ?]. auto.
 * intros [? ?] [? ?] ?. simpl in *. symmetry. assumption.
 * intros [? ?] [? ?] [? ?] ? ?. simpl in *. etransitivity; eassumption.
 Defined.
@@ -218,6 +234,8 @@ Lemma stutter_equiv_refl {A} :
 Proof.
 intros x. induction x; auto.
 Qed.
+
+Hint Extern 3 (stutter_equiv _ _) => reflexivity.
 
 Lemma stutter_equiv_sym {A} :
   forall (l1 l2 : list A),
@@ -531,7 +549,7 @@ induction H12.
     apply stutter_equiv_cons_inv in H12. subst.
     split; auto.
 * apply IHstutter_equiv. apply (is_trace_tail a). assumption.
-* split. apply next_refl. auto.
+* split; auto.
 Qed.
 
 Fixpoint repeat {A} (a: A) (n: nat) : list A :=
@@ -551,11 +569,7 @@ Lemma is_trace_repeat {A} {S: sys A} :
 Proof.
 intros a n. induction n; simpl.
 * trivial.
-* split.
-  + apply next_refl.
-  + destruct n; simpl in *.
-    - trivial.
-    - destruct IHn. split. apply next_refl. assumption.
+* split; auto.
 Qed.
 
 Lemma is_trace_repeat_prefix {A} {S: sys A} :
@@ -569,9 +583,7 @@ intros t a n H. induction n.
   + destruct l; trivial.
 * destruct t as [[| b l] Hl]; [destruct Hl |].
   simpl proj1_sig in *. simpl in H.
-  unfold repeat. fold (repeat a n). split.
-  + apply next_refl.
-  + rewrite <- app_comm_cons. assumption.
+  unfold repeat. fold (repeat a n). split; auto.
 Qed.
 
 Lemma is_trace_repeat_remove_prefix {A} {S: sys A} :
@@ -611,9 +623,7 @@ Lemma stutter_equiv_repeat {A} :
   forall (a: A) n,
     Stutter.stutter_equiv (a :: nil) (a :: repeat a n).
 Proof.
-intros a n. induction n; simpl.
-* reflexivity.
-* auto.
+intros a n. induction n; simpl; auto.
 Qed.
 
 Lemma In_nth {A} :
@@ -709,7 +719,7 @@ induction H; intros a' l1' l2' Heq.
     destruct (stutter_equiv_cons_left_inv _ _ _ H) as [l2'' H2''].
     subst.
     destruct (IHstutter_equiv a' l1' l2' H2) as [l1'' [l0 [? [? ?]]]].
-    exists l1''. exists l0. split; trivial. split; trivial.
+    exists l1''. exists l0. splits; trivial.
     { destruct l1'' as [|a1'' l1''].
       * inversion H0; subst. clear H0.
         destruct (stutter_one_inv _ _ H1) as [n Hn].
@@ -732,7 +742,7 @@ induction H; intros a' l1' l2' Heq.
       * inversion H0; subst. clear H0. simpl in *.
         destruct (stutter_one_inv _ _ H1) as [n Hn].
         exists (a' :: nil). exists l2''.
-        split; trivial. split; trivial.
+        splits; trivial.
         simpl. rewrite Hn. apply stutter_right.
         symmetry. apply stutter_equiv_repeat.
       * rewrite <- app_comm_cons in H0. inversion H0; subst. clear H0.
@@ -752,8 +762,7 @@ Proof.
 intros a l1 l2 l3 H.
 symmetry in H.
 destruct (stutter_equiv_app_left_inv _ _ _ _ H) as [l2' [l3' [? [? ?]]]].
-exists l2'. exists l3'. split; trivial.
-split; symmetry; trivial.
+exists l2'. exists l3'. symmetry in H1. symmetry in H2. auto.
 Qed.
 
 End Stutter.
@@ -769,7 +778,7 @@ Instance set_included_PreOrder {A} {R: relation A} `{Equivalence A R}:
   PreOrder (set_included R).
 Proof.
 constructor.
-* intros X x Hx; exists x; split; [assumption | reflexivity].
+* intros X x Hx; exists x; split; auto.
 * intros X Y Z HXY HYZ x Hx.
   destruct (HXY x Hx) as [y [Hy Hxy]].
   destruct (HYZ y Hy) as [z [Hz Hyz]].
@@ -788,6 +797,8 @@ Qed.
 
 Definition stutter {A} {S: sys A} (t1 t2: trace S) : Prop :=
   lift_trace Stutter.stutter_equiv t1 t2.
+
+Hint Extern 3 (stutter _ _) => compute; reflexivity.
 
 Lemma stutter_repeat {A} {S: sys A} :
   forall (a: A) n,
@@ -841,6 +852,8 @@ constructor.
   + destruct l2; destruct l3; simpl in *; try tauto.
     destruct H12; destruct H23. intuition eauto.
 Qed.
+
+Hint Extern 3 (same_view _ _ _) => reflexivity.
 
 Lemma same_view_cons_left_inv {A} (R: relation A) :
   forall a1 (l1 l2: list A),
@@ -977,6 +990,8 @@ Qed.
 Definition view {A} {S: sys A} (R: relation A) (t1 t2: trace S) :=
   lift_trace (same_view R) t1 t2.
 
+Hint Extern 3 (view _ _ _) => compute; reflexivity.
+
 Lemma view_stutter_one_included {A} {S: sys A}
       (R: relation A) {E: Equivalence R} :
   forall s1 s2,
@@ -989,10 +1004,9 @@ intros s1 s2 H [l Hl] Hs.
 destruct l. inversion Hl.
 compute in Hs.
 destruct l.
-- exists (trace_one S a). split.
-  compute. destruct Hs. split; trivial.
-  + transitivity s1. symmetry; assumption. assumption.
-  + compute. reflexivity.
+- exists (trace_one S a). split; auto.
+  destruct Hs. split; trivial.
+  transitivity s1. symmetry; assumption. assumption.
 - exfalso. tauto.
 Qed.
 
@@ -1024,10 +1038,9 @@ destruct H12 as [Ha1a2 Hl1l2].
 intros [[| a l] Hal Ha1l1al].
 (* nil: absurd *) destruct Hal.
 destruct Ha1l1al as [Ha1a Hl1l].
-exists (exist _ _ Hal). split.
-* split.
-  - intuition eauto.
-  - transitivity l1. symmetry; trivial. trivial.
+exists (exist _ _ Hal). deep_splits.
+* intuition eauto.
+* transitivity l1. symmetry; trivial. trivial.
 * reflexivity.
 Qed.
 
@@ -1053,9 +1066,7 @@ Proof.
 intros t1 t2 H. induction H.
 * exists nil. split. reflexivity. reflexivity.
 * destruct IHstutter_equiv as [l0 [Hl1 Hl2]].
-  exists (a :: l0). split.
-  auto.
-  split. reflexivity. assumption.
+  exists (a :: l0). deep_splits; auto.
 * destruct IHstutter_equiv as [l0 [Hl1 Hl2]].
   exists l0. split; auto.
 * destruct IHstutter_equiv as [l0 [Hl1 Hl2]].
@@ -1063,8 +1074,7 @@ intros t1 t2 H. induction H.
   + destruct (Stutter.stutter_equiv_cons_right_inv _ _ _ H). subst.
     destruct (Stutter.stutter_equiv_cons_left_inv _ _ _ Hl1). subst.
     auto.
-  + destruct l0; destruct Hl2.
-    split. reflexivity. split; trivial.
+  + destruct l0; destruct Hl2. deep_splits; trivial. reflexivity.
 Qed.
 
 Lemma view_stutter {A} {S: sys A} {R: relation A} {E: Equivalence R}:
@@ -1088,8 +1098,7 @@ Lemma stutter_equiv_one_view {A} (R: relation A) {E: Equivalence R} :
       Stutter.stutter_equiv (a1 :: nil) t0 /\ same_view R t0 (a2 :: l).
 Proof.
 intro l. induction l; intros a1 a2 Ha1a2 Hl.
-* exists (a1 :: nil). split. reflexivity.
-  split. assumption. reflexivity.
+* exists (a1 :: nil). deep_splits; trivial. reflexivity.
 * assert (a = a2).
   { inversion Hl; subst.
     - apply (Stutter.stutter_equiv_nil_left_inv) in H0. congruence.
@@ -1099,27 +1108,9 @@ intro l. induction l; intros a1 a2 Ha1a2 Hl.
     - apply (Stutter.stutter_equiv_nil_left_inv) in H0. congruence.
     - assumption. }
   destruct (IHl _ _ Ha1a2 H') as [l0 [H1l0 Hl02]].
-  exists (a1 :: l0). split.
-  - apply Stutter.stutter_equiv_cons_left_add_right. assumption.
-  - split; assumption.
+  exists (a1 :: l0). deep_splits; trivial.
+  apply Stutter.stutter_equiv_cons_left_add_right. assumption.
 Qed.
-
-(*
-Lemma test_included {A} {S: sys A} (R: relation A) {E: Equivalence R} :
-  forall (c: trace S -> Prop) (t1 t2: trace S),
-    set_included stutter (view R t1) c ->
-    set_included (view R) c (view R t2) ->
-    set_included stutter (view R t1) (view R t2).
-Proof.
-intros c t1 t2 Ht1c Hct2.
-intros t Ht1t.
-destruct (Ht1c t Ht1t) as [t1' [Hct1' Htt1']].
-destruct (Hct2 t1' Hct1') as [t2' [Ht2t2' Ht1't2']].
-exists t1'. split.
-+ transitivity t2'. assumption. symmetry. assumption.
-+ assumption.
-Qed.
-*)
 
 Lemma repeat_same_view {A} (R: relation A) {E: Equivalence R}:
   forall a1 a2 (l: list A),
@@ -1240,9 +1231,7 @@ destruct l as [| a0  l0]; [destruct Hl |].
 destruct Hl as [Haa0 Hl1l0].
 specialize (H l0 Hl1l0).
 destruct H as [l0' [Hl2l0' Hl0l0']].
-exists (a0 :: l0'). split.
-* split; trivial.
-* auto.
+exists (a0 :: l0'). deep_splits; auto.
 Qed.
 
 Lemma set_equiv_view_same {A} {R: relation A} {E: Equivalence R}:
@@ -1273,9 +1262,7 @@ destruct (Stutter.stutter_equiv_cons_right_inv _ _ _ Hll0) as [l' ?].
 subst l.
 destruct l1 as [| a1 l1]; [destruct Hl |].
 destruct Hl as [Ha1a0 Hl1l'].
-exists (a0 :: a0 :: l0). split.
-* split. trivial. split; trivial.
-* auto.
+exists (a0 :: a0 :: l0). deep_splits; auto.
 Qed.
 
 Lemma set_included_view_cons_left_add_right
@@ -1291,48 +1278,9 @@ destruct l as [| a l]; [destruct Hl |].
 specialize (H (a :: l) Hl).
 destruct H as [l0 [Hl2l0 Hll0]].
 destruct Hl as [Ha1a Hl1l].
-exists (a :: l0). split.
-* split; trivial.
-* apply Stutter.stutter_equiv_cons_left_add_right. trivial.
+exists (a :: l0). deep_splits; trivial.
+apply Stutter.stutter_equiv_cons_left_add_right. trivial.
 Qed.
-
-(*
-Lemma set_equiv_view_cons_left_add_left_included
-      {A} {R: relation A} {E: Equivalence R}:
-  forall a (l1 l2: list A),
-    set_equiv Stutter.stutter_equiv
-              (same_view R (a :: l1)) (same_view R l2) ->
-    set_included Stutter.stutter_equiv
-                 (same_view R (a :: a :: l1)) (same_view R l2).
-Proof.
-intros a1 l1 l2 [H H'] l Hl.
-destruct l as [| a l]; [destruct Hl |].
-destruct Hl as [Ha1a Hl].
-specialize (H l Hl).
-destruct H as [l0 [Hl2l0 Hll0]].
-specialize (H' l2).
-destruct H' as [l0' [Hl1l0' Hl0l0']]. reflexivity.
-???
-specialize (H' l0 Hl2l0).
-destruct H' as [l0' [Hl1l0' Hl0l0']].
-Qed.
-*)
-
-(*
-Lemma set_equiv_view_right {A} {R: relation A} {E: Equivalence R}:
-  forall a (l1 l2: list A),
-    set_equiv Stutter.stutter_equiv
-              (same_view R l1) (same_view R (a :: l2)) ->
-    set_equiv Stutter.stutter_equiv
-              (same_view R l1) (same_view R (a :: a :: l2)).
-Proof.
-intros a l1 l2 [H H'].
-split; apply set_included_view_right; trivial.
-Qed.
-*)
-
-
-
 
 Lemma view_set_included_view {A} {R: relation A} {E: Equivalence R} :
   forall (l1 l2: list A),
@@ -1350,9 +1298,8 @@ intro l1; induction l1; intros l2 H l Hl.
   destruct Hl as [Ha1a Hl1l].
   specialize (IHl1 l2 Hl1l2 l Hl1l).
   destruct IHl1 as [l0 [Hl2l0 Hll0]].
-  exists (a :: l0). split.
-  + split. { transitivity a1. symmetry. trivial. trivial. } trivial.
-  + auto.
+  exists (a :: l0). deep_splits; auto.
+  { transitivity a1. symmetry. trivial. trivial. }
 Qed.
 
 Lemma view_set_equiv_view {A} {R: relation A} {E: Equivalence R} :
@@ -1377,7 +1324,7 @@ destruct t as [l Hl]. destruct t' as [l' Hl'].
 unfold view in *. unfold lift_trace in *. simpl in *.
 clear Hl Hl'.
 generalize dependent l'. induction l; intros l' H1.
-* destruct l'; [| destruct H1]. compute; trivial.
+* destruct l'; [| destruct H1]. auto.
 * destruct l' as [| a' l']; [destruct H1 |].
   destruct H1 as [Haa' Hll'].
   split; auto.
@@ -1464,17 +1411,14 @@ Lemma same_view_app_inv_left {A} {R: relation A} {E: Equivalence R}:
       /\ same_view R l2 l2'.
 Proof.
 intros l1; induction l1; intros l2 l3 H.
-* exists nil. exists l3.
-  split. reflexivity. split. reflexivity. assumption.
+* exists nil. exists l3. splits; trivial. reflexivity.
 * rewrite <- app_comm_cons in H. destruct l3 as [|a3 l3]; [destruct H|].
   destruct H as [Haa3 H].
   destruct (IHl1 _ _ H) as [l1' [l2' [Heq [H1 H2]]]].
   clear IHl1.
   exists (a3 :: l1'). exists l2'. split.
   + rewrite Heq. apply app_comm_cons.
-  + split.
-    - split; trivial.
-    - trivial.
+  + deep_splits; trivial.
 Qed.
 
 Lemma same_view_app_inv_right {A} {R: relation A} {E: Equivalence R}:
@@ -1528,7 +1472,6 @@ Lemma exploit_obs_included_one {A} {S: sys A}
 Proof.
 intros s1 s2 H.
 apply (exploit_obs_included _ s1); auto.
-reflexivity.
 Qed.
 
 (* Observational equivalence *)
@@ -1555,7 +1498,7 @@ intros s [l Hl] H.
 destruct l as [| s' l'].
 * inversion Hl.
 * compute in H. subst.
-  exists (exist _ _ Hl). split; reflexivity.
+  exists (exist _ _ Hl). split; auto.
 Qed.
 
 Lemma exploit_obs_eq {A} {S: sys A}
@@ -1600,7 +1543,7 @@ generalize dependent l'. induction l; intros l' Hl' HR1.
 * destruct Hl.
 * destruct l as [| b l].
   + destruct l' as [| a' l']; [destruct Hl' |]. destruct l' as [| b' l'].
-    - compute in HR1. compute. split; trivial.
+    - compute in HR1. split; auto.
       destruct Heq as [H12 H21]. apply H21. compute. tauto.
     - destruct HR1 as [_ H]. destruct H.
   + destruct l' as [| a' l']; [destruct Hl' |]. destruct l' as [| b' l'].
@@ -1620,13 +1563,12 @@ Lemma obs_from_compat_ER_included {A} (S: sys A):
 Proof.
 intros R1 R2 E1 E2 s Heq.
 intros v [t [Hv Hts]]. subst v.
-exists (View.view R2 t). split.
+exists (View.view R2 t). deep_splits.
 + exists t. split; trivial.
-+ split.
-  - intros t0 Htt0. exists t0. split; trivial.
-    apply (view_compat_ER_equiv S R1 R2 E1 E2); auto.
-  - intros t0 Htt0. exists t0. split; trivial.
-    apply (view_compat_ER_equiv S R2 R1 E2 E1). trivial. symmetry; trivial.
++ intros t0 Htt0. exists t0. split; trivial.
+  apply (view_compat_ER_equiv S R1 R2 E1 E2); auto.
++ intros t0 Htt0. exists t0. split; trivial.
+  apply (view_compat_ER_equiv S R2 R1 E2 E1). trivial. symmetry; trivial.
 Qed.
 
 Lemma obs_from_compat_ER_equiv {A} (S: sys A):
@@ -1787,13 +1729,12 @@ Lemma replicate_trace_bottom {A} {S: sys A} :
 Proof.
 intros a t.
 exists (exist _ _ (Stutter.is_trace_repeat a (length (proj1_sig t) - 1))).
-split.
+splits.
 * reflexivity.
-* split.
-  + rewrite view_bottom_trace. simpl. rewrite Stutter.repeat_length.
-    destruct t as [[| b l] Hl]; [destruct Hl |].
-    simpl. omega.
-  + apply stutter_repeat.
+* rewrite view_bottom_trace. simpl. rewrite Stutter.repeat_length.
+  destruct t as [[| b l] Hl]; [destruct Hl |].
+  simpl. omega.
+* apply stutter_repeat.
 Qed.
 
 Lemma set_included_obs_from_bottom {A} {S: sys A}:
@@ -1805,15 +1746,14 @@ Proof.
 intros s1 s2 v Hv.
 destruct Hv as [t [Hv Hts1]]. subst v.
 destruct (replicate_trace_bottom s2 t) as [t' [Ht's2 [Htt' Ht']]].
-exists (View.view (er_bottom_rel A) t'). split.
+exists (View.view (er_bottom_rel A) t'). deep_splits.
 * apply obs_from_self; auto.
-* split.
-  + intros t0 Htt0. exists t0. split.
-    transitivity t. symmetry; assumption. assumption.
-    reflexivity.
-  + intros t0 Ht't0. exists t0. split.
-    transitivity t'. assumption. assumption.
-    reflexivity.
+* intros t0 Htt0. exists t0. split.
+  + transitivity t. symmetry; assumption. assumption.
+  + reflexivity.
+* intros t0 Ht't0. exists t0. split.
+  + transitivity t'. assumption. assumption.
+  + reflexivity.
 Qed.
 
 Lemma obs_eq_bottom {A} {S: sys A}:
@@ -1967,11 +1907,8 @@ subst t.
 destruct HR as [Htime [Hquery Hresult]].
 simpl in *.
 rewrite <- Htime.
-split.
-* reflexivity.
-* split.
-  + assumption.
-  + specialize (Hpassword eq_refl). subst. reflexivity.
+deep_splits; trivial.
+specialize (Hpassword eq_refl). subst. reflexivity.
 Qed.
 
 Lemma time_false_not_R_step :
@@ -2042,8 +1979,7 @@ destruct s' as [t' h' p' q' r'].
 destruct HR as [Htime [Hquery Hresult]].
 simpl in *. subst.
 rewrite <- Htime in *. clear Htime. unfold step. simpl.
-split. reflexivity.
-split. reflexivity.
+deep_splits.
 simpl. destruct (bool_dec p p').
 * subst. reflexivity.
 * exfalso. apply n. clear n.
@@ -2061,18 +1997,12 @@ simpl. destruct (bool_dec p p').
                result := r' |}). fold s' in Hobs.
   destruct Hobs as [Hss' Hs's].
   assert (is_trace password_checker (s :: step s :: nil)) as Htrace.
-  { split. right; reflexivity. compute; trivial. }
+  { split; auto. right; reflexivity. }
   pose (t := exist _ _ Htrace).
   specialize (Hss' (View.view R t)).
   destruct Hss' as [v' [[t0' [Hv' Ht0's']] Htt0']].
   { exists t. split; reflexivity. }
   subst v'.
-(*
-  specialize (Hs's (View.view R t0')).
-  destruct Hs's as [v [[t0 [Hv Ht0s]] Ht0't0]].
-  { exists t0'. split. reflexivity. assumption. }
-  subst v.
-*)
   assert (In (step s') (proj1_sig t0')).
   { destruct (stutter_password_checker t0') as [H | H].
     * exfalso.
@@ -2288,14 +2218,8 @@ Lemma SP_one_make_trace {A} (R : relation A) {E : Equivalence R} (S : sys A):
            /\ is_trace S l''.
 Proof.
 intros s s' l HR.
-exists s'. exists nil. split.
-* split. apply next_refl. compute; trivial.
-* split; trivial.
-  exists (s :: s :: nil). split.
-  + reflexivity.
-  + split.
-    - compute. tauto.
-    - split. apply next_refl. compute; trivial.
+exists s'. exists nil. deep_splits; auto.
+exists (s :: s :: nil). deep_splits; auto.
 Qed.
 
 Lemma SP_two_make_trace {A} (R : relation A) {E : Equivalence R}
@@ -2316,8 +2240,7 @@ Lemma SP_two_make_trace {A} (R : relation A) {E : Equivalence R}
 Proof.
 intros Hincl a s s' l HSP HR Hnext Hneq.
 specialize (HSP _ _ HR). simpl in HSP.
-assert (is_trace S1 (s :: a :: nil)) as Htrace0.
-{ split; trivial. compute; trivial. }
+assert (is_trace S1 (s :: a :: nil)) as Htrace0 by auto.
 pose (t0 := exist _ _ Htrace0).
 apply (exploit_obs_eq t0) in HSP; try reflexivity.
 destruct HSP as [t0'' [t0' [Ht0's' [Ht0't0'' Ht0t0'']]]].
@@ -2334,18 +2257,15 @@ assert (s' = s'').
   destruct l0' as [|x0' l0']; [destruct Hl0'|].
   compute in Ht0's'. congruence. }
 subst s''.
-exists a'. exists l'. split.
+exists a'. exists l'. splits; trivial.
 * destruct t0' as [[|x' l0'] Hl']; [destruct Hl'|].
   apply (is_trace_map_included _ _ _ Hincl).
   simpl in Heq. congruence.
-* split; trivial.
-  { exists (proj1_sig t0''). split.
-    - symmetry. assumption.
-    - split.
-      * rewrite <- Heq. rewrite Hn. symmetry. assumption.
-      * apply (is_trace_map_included _ _ _ Hincl).
-        destruct t0''; trivial.
-  }
+* exists (proj1_sig t0''). splits.
+  - symmetry. assumption.
+  - rewrite <- Heq. rewrite Hn. symmetry. assumption.
+  - apply (is_trace_map_included _ _ _ Hincl).
+    destruct t0''; trivial.
 Qed.
 
 Lemma SP_make_trace {A} (R : relation A) {E : Equivalence R} (S1 S2 : sys A):
@@ -2401,17 +2321,16 @@ induction l1; intros s1 s1' Hs1s1' a1 Hl1 Hs1.
       + intros [l Hl] Ht. simpl proj1_sig in *.
         destruct l as [| s l]; [destruct Hl |].
         destruct l as [| ? ?]; compute in Ht; [| exfalso; tauto ].
-        exists (exist _ _ Hl). split.
-        - compute. split; trivial. transitivity s1.
-          symmetry; assumption. tauto.
+        exists (exist _ _ Hl). deep_splits.
+        - transitivity s1. symmetry; assumption. tauto.
         - reflexivity.
       + intros [l Hl] Ht. simpl proj1_sig in *.
         destruct l as [| s l]; [destruct Hl |].
         destruct l as [| ? ?]; compute in Ht; [| exfalso; tauto ].
-        exists (exist _ _ Hl). split.
-        - compute. split; trivial. transitivity s1'.
-          assumption. tauto.
-        - reflexivity. }
+        exists (exist _ _ Hl). deep_splits.
+        - transitivity s1'; tauto.
+        - reflexivity.
+  }
 + { compute in Hs1. subst a1. destruct Hl1 as [Hs1a Hl1].
     rename a into a1.
     pose proof (SP_make_trace R S1 S2 a1 s1 s1' l1 H1 H2 Hs1s1' Hs1a) as H.
@@ -2581,7 +2500,7 @@ split; intro H.
   assert (stutter ts tss) as Hstutter.
   { apply Stutter.stutter_right. reflexivity. }
   assert (View.view R tss tss') as Hview.
-  { split. reflexivity. split. assumption. compute; trivial. }
+  { deep_splits; trivial. reflexivity. }
   specialize (H _ _ _ Hstutter Hview).
   destruct H as [[l0 H0] [Hview0 Hstutter0]].
   destruct l0 as [|a0 l0]; [destruct H0|].
@@ -2629,13 +2548,10 @@ split; intro H.
           destruct (IHn (a1 :: l1) (a2 :: l2) (a3' :: l3))
             as [l2' [H2' [Hview2' Hstutter2']]]; trivial. omega.
           exists (a3 :: l2').
-          { split.
-            * destruct l2' as [|a2' l2']; [destruct Hview2'|].
-              apply Stutter.stutter_equiv_cons_inv in Hstutter2'. subst.
-              split; trivial.
-            * split.
-              + split; trivial.
-              + auto.
+          { deep_splits; auto.
+            destruct l2' as [|a2' l2']; [destruct Hview2'|].
+            apply Stutter.stutter_equiv_cons_inv in Hstutter2'. subst.
+            split; trivial.
           }
       + destruct H1 as [Hnext1 H1]. simpl in Hn.
         destruct (IHn (a :: l1) l2 l3) as [l2' [H2' [Hview2' Hstutter2']]];
@@ -2646,13 +2562,7 @@ split; intro H.
         assert (a2' = a3).
         { apply Stutter.stutter_equiv_cons_inv in Hstutter2'. assumption. }
         subst.
-        exists (a3 :: a3 :: l2').
-        { split.
-          * split; trivial. apply next_refl.
-          * split.
-            + split; trivial. split; trivial.
-            + auto.
-        }
+        exists (a3 :: a3 :: l2'). deep_splits; auto.
       + destruct H2 as [Hnext2 H2]. simpl in Hn.
         destruct l3 as [|a3 l3]; [destruct H3|].
         destruct Hview as [Haa3 Hview].
@@ -2672,13 +2582,7 @@ split; intro H.
           apply Stutter.stutter_equiv_cons_inv in Hstutter. subst.
           transitivity a; trivial. symmetry; trivial. }
         subst.
-        exists (a3' :: l2').
-        { split.
-          * trivial.
-          * split.
-            + split; trivial.
-            + auto.
-        }
+        exists (a3' :: l2'). deep_splits; auto.
   }
   intros [l1 H1] [l2 H2] [l3 H3] H12 H23.
   specialize (Hstrong (length l1 + length l2) l1 l2 l3).

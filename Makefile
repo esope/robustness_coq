@@ -1,4 +1,5 @@
-MODULES := Lattice Kleene \
+MODULES := MyTactics \
+	   Lattice Kleene \
            NatLattice SetLattice RelLattice PERLattice ERLattice \
            Robustness
 
