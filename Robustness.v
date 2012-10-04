@@ -2567,3 +2567,124 @@ intros H Hcomm.
 intros s s' [H2 H2']. simpl in *.
 split; apply (obs_included_monotone R1 R2); trivial.
 Qed.
+
+Lemma commute_characterization {A} {S: sys A}
+      (R: relation A) {E: Equivalence R} :
+  @commute (trace S) stutter (View.view R) <->
+  forall s s', next S s s' -> R s s' -> s = s'.
+Proof.
+split; intro H.
+* intros s s' Hnext HR. unfold commute in H.
+  pose (ts   := trace_one S s).
+  pose (tss  := trace_cons s (trace_one S s)  (next_refl _ _ _)).
+  pose (tss' := trace_cons s (trace_one S s') Hnext).
+  assert (stutter ts tss) as Hstutter.
+  { apply Stutter.stutter_right. reflexivity. }
+  assert (View.view R tss tss') as Hview.
+  { split. reflexivity. split. assumption. compute; trivial. }
+  specialize (H _ _ _ Hstutter Hview).
+  destruct H as [[l0 H0] [Hview0 Hstutter0]].
+  destruct l0 as [|a0 l0]; [destruct H0|].
+  destruct Hview0 as [Hsa0 Hview0].
+  destruct l0; [|destruct Hview0].
+  compute in Hstutter0.
+  assert (a0 = s).
+  { apply Stutter.stutter_equiv_cons_inv in Hstutter0. assumption. }
+  assert (a0 = s').
+  { assert (In s' (a0 :: nil)) as HIn.
+    { symmetry in Hstutter0. apply (Stutter.stutter_equiv_in _ _ Hstutter0).
+      compute; tauto.
+    }
+    compute in HIn; tauto.
+  }
+  congruence.
+* assert (forall n (l1 l2 l3: list A),
+            length l1 + length l2 <= n ->
+            is_trace S l1 ->
+            is_trace S l2 ->
+            is_trace S l3 ->
+            Stutter.stutter_equiv l1 l2 ->
+            View.same_view R l2 l3 ->
+            exists l2',
+              is_trace S l2'
+              /\ View.same_view R l1 l2'
+              /\ Stutter.stutter_equiv l2' l3)
+    as Hstrong.
+  { intro n; induction n; intros l1 l2 l3 Hn H1 H2 H3 Hstutter Hview.
+    * exfalso. destruct l1; [destruct H1|]. simpl in Hn. omega.
+    * destruct Hstutter.
+      + exfalso. destruct H1.
+      + destruct l3 as [|a3 l3]; [destruct H3|]. simpl in Hn.
+        destruct Hview as [Haa3 Hview].
+        destruct l1 as [|a1 l1]; destruct l2 as [|a2 l2].
+        - destruct l3; [| destruct Hview].
+          exists (a3 :: nil). compute. auto.
+        - exfalso. apply Stutter.stutter_equiv_nil_left_inv in Hstutter.
+          congruence.
+        - exfalso. apply Stutter.stutter_equiv_nil_right_inv in Hstutter.
+          congruence.
+        - destruct H1 as [Hnext1 H1]. destruct H2 as [Hnext2 H2].
+          destruct l3 as [|a3' l3]; [destruct Hview|].
+          destruct H3 as [Hnext3 H3].
+          destruct (IHn (a1 :: l1) (a2 :: l2) (a3' :: l3))
+            as [l2' [H2' [Hview2' Hstutter2']]]; trivial. omega.
+          exists (a3 :: l2').
+          { split.
+            * destruct l2' as [|a2' l2']; [destruct Hview2'|].
+              apply Stutter.stutter_equiv_cons_inv in Hstutter2'. subst.
+              split; trivial.
+            * split.
+              + split; trivial.
+              + auto.
+          }
+      + destruct H1 as [Hnext1 H1]. simpl in Hn.
+        destruct (IHn (a :: l1) l2 l3) as [l2' [H2' [Hview2' Hstutter2']]];
+          trivial. simpl; omega.
+        destruct l2' as [|a2' l2']; [destruct H2'|].
+        destruct Hview2' as [Haa2' Hview2'].
+        destruct l3 as [|a3 l3]; [destruct H3|].
+        assert (a2' = a3).
+        { apply Stutter.stutter_equiv_cons_inv in Hstutter2'. assumption. }
+        subst.
+        exists (a3 :: a3 :: l2').
+        { split.
+          * split; trivial. apply next_refl.
+          * split.
+            + split; trivial. split; trivial.
+            + auto.
+        }
+      + destruct H2 as [Hnext2 H2]. simpl in Hn.
+        destruct l3 as [|a3 l3]; [destruct H3|].
+        destruct Hview as [Haa3 Hview].
+        destruct l3 as [|a3' l3]; [destruct Hview|].
+        destruct H3 as [Hnext3 H3].
+        simpl in Hn.
+        destruct (IHn l1 (a :: l2) (a3' :: l3))
+          as [l2' [H2' [Hview2' Hstutter2']]]; trivial. simpl; omega.
+        destruct l2' as [|a2' l2']; [destruct H2'|].
+        assert (a2' = a3').
+        { apply Stutter.stutter_equiv_cons_inv in Hstutter2'. assumption. }
+        subst.
+        destruct l1 as [|a1 l1]; [destruct H1|].
+        destruct Hview2' as [Ha1a3 Hview2'].
+        assert (a3 = a3').
+        { apply H; trivial.
+          apply Stutter.stutter_equiv_cons_inv in Hstutter. subst.
+          transitivity a; trivial. symmetry; trivial. }
+        subst.
+        exists (a3' :: l2').
+        { split.
+          * trivial.
+          * split.
+            + split; trivial.
+            + auto.
+        }
+  }
+  intros [l1 H1] [l2 H2] [l3 H3] H12 H23.
+  specialize (Hstrong (length l1 + length l2) l1 l2 l3).
+  destruct Hstrong as [l2' [H2' [Hview2' Hstutter2']]]; auto.
+  exists (exist _ _ H2'). auto.
+Qed.
+
+
+
