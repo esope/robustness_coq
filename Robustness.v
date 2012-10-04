@@ -18,6 +18,10 @@ Require Import List.
 Require Import RelationClasses.
 Require Import Omega.
 
+Hint Extern 3 (_ <= _) => first [omega | simpl; omega].
+Hint Extern 3 (_ = _) => first [omega | simpl; omega].
+Hint Extern 3 => exfalso; first [omega | simpl in *|-; omega].
+
 Ltac equivalence_reflexivity :=
   match goal with
     | E: Equivalence ?R |- ?R _ _ => reflexivity
@@ -444,23 +448,22 @@ Lemma stutter_equiv_trans_strong {A} :
     stutter_equiv l1 l3.
 Proof.
 intros n; induction n; intros l1 l2 l3 Hn H12 H23.
-* destruct l1; destruct l2; destruct l3; simpl in Hn;
-  try solve [exfalso; omega]; auto.
+* destruct l1; destruct l2; destruct l3; simpl in Hn; auto.
 * inversion H12; subst; simpl in Hn; auto.
   - inversion H23; subst; simpl in Hn.
-    + apply stutter_same. apply (IHn l0 l4 l2); auto. omega.
+    + apply stutter_same. apply (IHn l0 l4 l2); auto.
     + apply (IHn (a :: l0) (a :: l1) l3);
-      auto using stutter_equiv_cons_right_add_left. simpl; omega.
+      auto using stutter_equiv_cons_right_add_left.
     + apply stutter_right.
-      apply (IHn (a :: l0) (a :: l4) (a0 :: l2)); auto. simpl; omega.
+      apply (IHn (a :: l0) (a :: l4) (a0 :: l2)); auto.
   - apply stutter_left.
-    apply (IHn (a :: l0) l2 l3); auto. simpl; omega.
+    apply (IHn (a :: l0) l2 l3); auto.
   - inversion H23; subst; simpl in Hn.
     + apply (IHn l1 (a :: l4) (a :: l2));
-      auto using stutter_equiv_cons_left_add_right. simpl; omega.
-    + apply (IHn l1 (a :: l4) l3); auto. simpl; omega.
+      auto using stutter_equiv_cons_left_add_right.
+    + apply (IHn l1 (a :: l4) l3); auto.
     + apply stutter_right.
-      apply (IHn l1 (a :: a :: l4) (a0 :: l2)); auto. simpl; omega.
+      apply (IHn l1 (a :: a :: l4) (a0 :: l2)); auto.
 Qed.
 
 Lemma stutter_equiv_trans {A} :
@@ -633,13 +636,9 @@ Proof.
 intros a l H. generalize dependent a. induction l; intros a' H'.
 * destruct H'.
 * destruct H'.
-  + subst a'. exists 0. split.
-    - simpl. omega.
-    - intros b. reflexivity.
+  + subst a'. exists 0. split; auto.
   + destruct (IHl a' H) as [n [Hn Hnth]].
-    exists (S n). split.
-    - simpl. omega.
-    - intros b. simpl. auto.
+    exists (S n). split; auto.
 Qed.
 
 Lemma repeat_nth {A} :
@@ -648,11 +647,8 @@ Lemma repeat_nth {A} :
     nth k (repeat a n) a0 = a.
 Proof.
 intros a a0 k n H.
-generalize dependent k. revert a. induction n; intros a k H.
-* exfalso. omega.
-* simpl. destruct k.
-  + trivial.
-  + apply IHn. omega.
+generalize dependent k. revert a. induction n; intros a k H; auto.
+simpl. destruct k; auto.
 Qed.
 
 Lemma stutter_one_inv {A} :
@@ -932,8 +928,6 @@ Proof.
 intros n.
 induction n; intros a l1 l2 H;
 destruct l1; destruct l2; simpl in *; intuition.
-exfalso; omega.
-exfalso; omega.
 Qed.
 
 Lemma nth_same_view {A} (R: relation A) :
@@ -946,13 +940,11 @@ Lemma nth_same_view {A} (R: relation A) :
 Proof.
 intros l1.
 induction l1; intros l2 Hlength H; destruct l2;
-simpl in Hlength; try solve [intuition | exfalso; omega ].
-simpl. split.
-* apply (H a 0); simpl; omega.
+simpl in Hlength; intuition. split.
+* apply (H a 0); auto.
 * apply IHl1.
   - congruence.
-  - intros a' n H1 H2.
-    apply (H a' (S n)); simpl; omega.
+  - intros a' n H1 H2. apply (H a' (S n)); auto.
 Qed.
 
 Lemma same_view_characterization {A} (R: relation A):
@@ -1127,8 +1119,7 @@ rewrite same_view_characterization. split.
   assert (l = Stutter.repeat a1 (S m)) as Hlm by assumption.
   assert (length l = S m). { rewrite Hlm. apply Stutter.repeat_length. }
   rewrite Hlm.
-  rewrite Stutter.repeat_nth; trivial.
-  omega.
+  rewrite Stutter.repeat_nth; auto.
 Qed.
 
 Lemma repeat_two_same_view {A} (R: relation A) {E: Equivalence R}:
@@ -1732,8 +1723,7 @@ exists (exist _ _ (Stutter.is_trace_repeat a (length (proj1_sig t) - 1))).
 splits.
 * reflexivity.
 * rewrite view_bottom_trace. simpl. rewrite Stutter.repeat_length.
-  destruct t as [[| b l] Hl]; [destruct Hl |].
-  simpl. omega.
+  destruct t as [[| b l] Hl]; [destruct Hl |]. auto.
 * apply stutter_repeat.
 Qed.
 
@@ -2530,7 +2520,7 @@ split; intro H.
               /\ Stutter.stutter_equiv l2' l3)
     as Hstrong.
   { intro n; induction n; intros l1 l2 l3 Hn H1 H2 H3 Hstutter Hview.
-    * exfalso. destruct l1; [destruct H1|]. simpl in Hn. omega.
+    * exfalso. destruct l1; [destruct H1|]. auto.
     * destruct Hstutter.
       + exfalso. destruct H1.
       + destruct l3 as [|a3 l3]; [destruct H3|]. simpl in Hn.
@@ -2546,7 +2536,7 @@ split; intro H.
           destruct l3 as [|a3' l3]; [destruct Hview|].
           destruct H3 as [Hnext3 H3].
           destruct (IHn (a1 :: l1) (a2 :: l2) (a3' :: l3))
-            as [l2' [H2' [Hview2' Hstutter2']]]; trivial. omega.
+            as [l2' [H2' [Hview2' Hstutter2']]]; auto.
           exists (a3 :: l2').
           { deep_splits; auto.
             destruct l2' as [|a2' l2']; [destruct Hview2'|].
@@ -2554,8 +2544,8 @@ split; intro H.
             split; trivial.
           }
       + destruct H1 as [Hnext1 H1]. simpl in Hn.
-        destruct (IHn (a :: l1) l2 l3) as [l2' [H2' [Hview2' Hstutter2']]];
-          trivial. simpl; omega.
+        destruct (IHn (a :: l1) l2 l3)
+          as [l2' [H2' [Hview2' Hstutter2']]]; auto.
         destruct l2' as [|a2' l2']; [destruct H2'|].
         destruct Hview2' as [Haa2' Hview2'].
         destruct l3 as [|a3 l3]; [destruct H3|].
@@ -2570,7 +2560,7 @@ split; intro H.
         destruct H3 as [Hnext3 H3].
         simpl in Hn.
         destruct (IHn l1 (a :: l2) (a3' :: l3))
-          as [l2' [H2' [Hview2' Hstutter2']]]; trivial. simpl; omega.
+          as [l2' [H2' [Hview2' Hstutter2']]]; auto.
         destruct l2' as [|a2' l2']; [destruct H2'|].
         assert (a2' = a3').
         { apply Stutter.stutter_equiv_cons_inv in Hstutter2'. assumption. }
@@ -2589,6 +2579,3 @@ split; intro H.
   destruct Hstrong as [l2' [H2' [Hview2' Hstutter2']]]; auto.
   exists (exist _ _ H2'). auto.
 Qed.
-
-
-
