@@ -11,6 +11,9 @@ Fixpoint same_view {A} (R: relation A) (l1 l2: list A) :=
     | (a1 :: l1, a2 :: l2) => R a1 a2 /\ same_view R l1 l2
     | _ => False
   end.
+(* I made a mistake here: in the paper,
+   same_view R l1 l2 = map R l1 == map R l2
+*)
 
 Instance same_view_Equivalence {A}
          (R: relation A) {E: Equivalence R} : Equivalence (same_view R).
