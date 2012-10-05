@@ -1639,6 +1639,32 @@ split; intro H.
   exists (exist _ _ H2'). auto.
 Qed.
 
+(** Commutation with stuttering is monotone *)
+Lemma stutter_commute_monotone  {A} {S: sys A}
+      (R1: relation A) {E1: Equivalence R1}
+      (R2: relation A) {E2: Equivalence R2} :
+  leq (toER R1) (toER R2) ->
+  @commute (trace S) stutter (view R1) ->
+  @commute (trace S) stutter (view R2).
+Proof.
+intros H12 Hcomm.
+rewrite commute_characterization; trivial.
+rewrite commute_characterization in Hcomm; trivial.
+compute in H12.
+auto.
+Qed.
+
+(** Commutation is preserved by observational equivalence. *)
+Lemma stutter_commute_obs_eq {A} {S: sys A}
+      (R: relation A) {E: Equivalence R}:
+  @commute (trace S) stutter (view R) ->
+  @commute (trace S) stutter (view (obs_eq S R)).
+Proof.
+intro H.
+apply (stutter_commute_monotone R (obs_eq S R)); trivial.
+apply prop_2_1.
+Qed.
+
 (** The password example enjoys the commutation property! *)
 Lemma password_commute :
   @commute (trace Example1.password_checker) stutter (view Example1.R).
