@@ -1638,3 +1638,19 @@ split; intro H.
   destruct Hstrong as [l2' [H2' [Hview2' Hstutter2']]]; auto.
   exists (exist _ _ H2'). auto.
 Qed.
+
+(** The password example enjoys the commutation property! *)
+Lemma password_commute :
+  @commute (trace Example1.password_checker) stutter (view Example1.R).
+Proof.
+rewrite commute_characterization.
+* intros s s' Hnext HR. destruct Hnext; auto.
+  unfold Example1.step in H. case_eq (Example1.time s); intro Htime.
+  + rewrite Htime in H. auto.
+  + exfalso.
+    rewrite Htime in H. unfold Example1.R in HR.
+    destruct HR as [HtimeEq _].
+    rewrite H in HtimeEq. simpl in HtimeEq.
+    congruence.
+* exact Example1.R_Equivalence.
+Qed.
