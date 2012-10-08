@@ -1023,6 +1023,43 @@ transitivity (toER (obs_eq (sys_union S Attack) (obs_eq Attack RA))).
 Qed.
 
 (** * Monotonicity of obs_eq (Prop 4.2). *)
+Lemma stutter_equiv_map_class_included {A}
+      (R1 : relation A) {E1 : Equivalence R1}
+      (R2 : relation A) {E2 : Equivalence R2} :
+  (forall x y, R1 x y -> R2 x y) ->
+  forall (l l': list A),
+    stutter_equiv (map (class R1) l) (map (class R1) l') ->
+    stutter_equiv (map (class R2) l) (map (class R2) l').
+Proof.
+intros Hincl l0 l0' H.
+remember (map (class R1) l0) as l.
+remember (map (class R1) l0') as l'.
+generalize dependent l0'.
+generalize dependent l0.
+induction H; intros l0 Heq l0' Heq'.
+* destruct l0; destruct l0'; simpl in *; try congruence. auto.
+* destruct l0 as [|a0 l0]; simpl in *; try congruence.
+  destruct l0' as [|a0' l0']; simpl in *; try congruence.
+  inversion Heq; subst. inversion Heq'; subst. clear Heq Heq'.
+  apply (class_eq_included_rel R1 R2 Hincl) in H1.
+  rewrite H1. auto.
+* destruct l0 as [|a0 l0]; simpl in *; try congruence.
+  destruct l0 as [|a0' l0]; simpl in *; try congruence.
+  inversion Heq; subst. clear Heq.
+  pose proof (class_eq_included_rel R1 R2 Hincl _ _ H2) as H0.
+  rewrite H0. apply stutter_left.
+  transitivity (map (class R2) (a0' :: l0)). reflexivity.
+  eapply IHstutter_equiv; auto. rewrite H2. reflexivity.
+* destruct l0' as [|a0 l0']; simpl in *; try congruence.
+  destruct l0' as [|a0' l0']; simpl in *; try congruence.
+  inversion Heq'; subst. clear Heq'.
+  pose proof (class_eq_included_rel R1 R2 Hincl _ _ H2) as H0.
+  rewrite H0. apply stutter_right.
+  transitivity (map (class R2) (a0' :: l0')).
+  eapply IHstutter_equiv; auto. rewrite H2. reflexivity.
+  reflexivity.
+Qed.
+
 Lemma obs_included_monotone {A} {S: sys A}
       (R1: relation A) {E1: Equivalence R1}
       (R2: relation A) {E2: Equivalence R2} :
@@ -1037,7 +1074,7 @@ destruct H2 as [v' [[t' [Hv' Ht's']] Htt']].
 apply obs_from_self; auto. subst v'.
 exists (view R1 t'). split.
 + apply obs_from_self; auto.
-+ admit.
++ apply (stutter_equiv_map_class_included R2 R1); auto.
 Qed.
 
 (** The monotonicity lemma. *)
@@ -1050,152 +1087,3 @@ Proof.
 intros H s s' [H2 H2']. simpl in *.
 split; apply (obs_included_monotone R1 R2); trivial.
 Qed.
-
-(*
-(** A characterization of the commutation assumption. *)
-Lemma commute_characterization {A} {S: sys A}
-      (R: relation A) {E: Equivalence R} :
-  @commute (trace S) stutter (view R) <->
-  forall s s', next S s s' -> R s s' -> s = s'.
-Proof.
-split; intro H.
-* intros s s' Hnext HR. unfold commute in H.
-  pose (ts   := trace_one S s).
-  pose (tss  := trace_cons s (trace_one S s)  (next_refl _ _ _)).
-  pose (tss' := trace_cons s (trace_one S s') Hnext).
-  assert (stutter ts tss) as Hstutter.
-  { apply stutter_right. reflexivity. }
-  assert (view R tss tss') as Hview.
-  { deep_splits; trivial. reflexivity. }
-  specialize (H _ _ _ Hstutter Hview).
-  destruct H as [[l0 H0] [Hview0 Hstutter0]].
-  destruct l0 as [|a0 l0]; [destruct H0|].
-  destruct Hview0 as [Hsa0 Hview0].
-  destruct l0; [|destruct Hview0].
-  simpl_ctx.
-  assert (a0 = s).
-  { apply stutter_equiv_cons_inv in Hstutter0. assumption. }
-  assert (a0 = s').
-  { assert (In s' (a0 :: nil)) as HIn.
-    { symmetry in Hstutter0. apply (stutter_equiv_in _ _ Hstutter0).
-      compute; tauto.
-    }
-    compute in HIn; tauto.
-  }
-  congruence.
-* assert (forall n (l1 l2 l3: list A),
-            length l1 + length l2 <= n ->
-            is_trace S l1 ->
-            is_trace S l2 ->
-            is_trace S l3 ->
-            stutter_equiv l1 l2 ->
-            same_view R l2 l3 ->
-            exists l2',
-              is_trace S l2'
-              /\ same_view R l1 l2'
-              /\ stutter_equiv l2' l3)
-    as Hstrong.
-  { intro n; induction n; intros l1 l2 l3 Hn H1 H2 H3 Hstutter Hview.
-    * exfalso. destruct l1; [destruct H1|]. auto.
-    * destruct Hstutter.
-      + exfalso. destruct H1.
-      + destruct l3 as [|a3 l3]; [destruct H3|]. simpl in Hn.
-        destruct Hview as [Haa3 Hview].
-        destruct l1 as [|a1 l1]; destruct l2 as [|a2 l2].
-        - destruct l3; [| destruct Hview].
-          exists (a3 :: nil). deep_splits; auto.
-        - exfalso. apply stutter_equiv_nil_left_inv in Hstutter.
-          congruence.
-        - exfalso. apply stutter_equiv_nil_right_inv in Hstutter.
-          congruence.
-        - destruct H1 as [Hnext1 H1]. destruct H2 as [Hnext2 H2].
-          destruct l3 as [|a3' l3]; [destruct Hview|].
-          destruct H3 as [Hnext3 H3].
-          destruct (IHn (a1 :: l1) (a2 :: l2) (a3' :: l3))
-            as [l2' [H2' [Hview2' Hstutter2']]]; auto.
-          exists (a3 :: l2').
-          { deep_splits; auto.
-            destruct l2' as [|a2' l2']; [destruct Hview2'|].
-            apply stutter_equiv_cons_inv in Hstutter2'. subst.
-            split; trivial.
-          }
-      + destruct H1 as [Hnext1 H1]. simpl in Hn.
-        destruct (IHn (a :: l1) l2 l3)
-          as [l2' [H2' [Hview2' Hstutter2']]]; auto.
-        destruct l2' as [|a2' l2']; [destruct H2'|].
-        destruct Hview2' as [Haa2' Hview2'].
-        destruct l3 as [|a3 l3]; [destruct H3|].
-        assert (a2' = a3).
-        { apply stutter_equiv_cons_inv in Hstutter2'. assumption. }
-        subst.
-        exists (a3 :: a3 :: l2'). deep_splits; auto.
-      + destruct H2 as [Hnext2 H2]. simpl in Hn.
-        destruct l3 as [|a3 l3]; [destruct H3|].
-        destruct Hview as [Haa3 Hview].
-        destruct l3 as [|a3' l3]; [destruct Hview|].
-        destruct H3 as [Hnext3 H3].
-        simpl in Hn.
-        destruct (IHn l1 (a :: l2) (a3' :: l3))
-          as [l2' [H2' [Hview2' Hstutter2']]]; auto.
-        destruct l2' as [|a2' l2']; [destruct H2'|].
-        assert (a2' = a3').
-        { apply stutter_equiv_cons_inv in Hstutter2'. assumption. }
-        subst.
-        destruct l1 as [|a1 l1]; [destruct H1|].
-        destruct Hview2' as [Ha1a3 Hview2'].
-        assert (a3 = a3').
-        { apply H; trivial.
-          apply stutter_equiv_cons_inv in Hstutter. subst.
-          transitivity a; trivial. symmetry; trivial. }
-        subst.
-        exists (a3' :: l2'). deep_splits; auto.
-  }
-  intros [l1 H1] [l2 H2] [l3 H3] H12 H23.
-  specialize (Hstrong (length l1 + length l2) l1 l2 l3).
-  destruct Hstrong as [l2' [H2' [Hview2' Hstutter2']]]; auto.
-  exists (exist _ _ H2'). auto.
-Qed.
-
-(** Commutation with stuttering is monotone *)
-Lemma stutter_commute_monotone  {A} {S: sys A}
-      (R1: relation A) {E1: Equivalence R1}
-      (R2: relation A) {E2: Equivalence R2} :
-  leq (toER R1) (toER R2) ->
-  @commute (trace S) stutter (view R1) ->
-  @commute (trace S) stutter (view R2).
-Proof.
-intros H12 Hcomm.
-rewrite commute_characterization; trivial.
-rewrite commute_characterization in Hcomm; trivial.
-compute in H12.
-auto.
-Qed.
-
-(** Commutation is preserved by observational equivalence. *)
-Lemma stutter_commute_obs_eq {A} {S: sys A}
-      (R: relation A) {E: Equivalence R}:
-  @commute (trace S) stutter (view R) ->
-  @commute (trace S) stutter (view (obs_eq S R)).
-Proof.
-intro H.
-apply (stutter_commute_monotone R (obs_eq S R)); trivial.
-apply prop_2_1.
-Qed.
-
-(** The password example enjoys the commutation property! *)
-Lemma password_commute :
-  @commute (trace Example1.password_checker) stutter (view Example1.R).
-Proof.
-rewrite commute_characterization.
-* intros s s' Hnext HR. destruct Hnext; auto.
-  unfold Example1.step in H. case_eq (Example1.time s); intro Htime.
-  + rewrite Htime in H. auto.
-  + exfalso.
-    rewrite Htime in H. unfold Example1.R in HR.
-    destruct HR as [HtimeEq _].
-    rewrite H in HtimeEq. simpl in HtimeEq.
-    congruence.
-* exact Example1.R_Equivalence.
-Qed.
-*)
-
