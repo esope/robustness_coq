@@ -27,7 +27,7 @@ http://www.cis.upenn.edu/~stevez/papers/ZM01b.pdf
 
 Require Import MyTactics.
 Require Import Relations.
-Require Import List.
+Require Import MyList.
 Require Import RelationClasses.
 Require Import Stutter.
 Require Import EquivClass.
