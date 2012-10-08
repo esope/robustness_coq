@@ -2,7 +2,7 @@ MODULES := MyTactics \
 	   EquivClass SetPredicates \
 	   Lattice Kleene \
            NatLattice SetLattice RelLattice PERLattice ERLattice \
-           Stutter View Robustness \
+           Stutter Robustness \
            Examples
 
 VS 	:= $(MODULES:%=%.v)
