@@ -335,145 +335,6 @@ compute in Heq. compute.
 tauto.
 Qed.
 
-(*
-
-(** * Lemmas about <<set_included stutter (view R _) (view R _)>> and <<set_equiv stutter (view R _) (view R _)>>. *)
-
-(** ** Lemmas to exploit some assumptions. *)
-Lemma exploit_set_included_stutter_view {A} {S: sys A}
-      {R: relation A} {E: Equivalence R}:
-  forall (t1 t2: trace S),
-    set_included stutter (view R t1) (view R t2) ->
-    exists t0 : trace S, view R t2 t0 /\ stutter t1 t0.
-Proof.
-intros t1 t2 H.
-apply H. reflexivity.
-Qed.
-
-Lemma exploit_set_equiv_stutter_view {A} {S: sys A}
-      {R: relation A} {E: Equivalence R}:
-  forall (t1 t2: trace S),
-    set_equiv stutter (view R t1) (view R t2) ->
-    exists t0 : trace S, view R t2 t0 /\ stutter t1 t0.
-Proof.
-intros t1 t2 [H _].
-apply exploit_set_included_stutter_view. trivial.
-Qed.
-
-(** ** Special case of <<trace_one>>. *)
-Lemma view_stutter_one_included {A} {S: sys A}
-      (R: relation A) {E: Equivalence R} :
-  forall s1 s2,
-    R s1 s2 ->
-    set_included stutter
-              (view R (trace_one S s1))
-              (view R (trace_one S s2)).
-Proof.
-intros s1 s2 H [l Hl] Hs.
-destruct l. inversion Hl.
-compute in Hs.
-destruct l.
-- exists (trace_one S a). split; auto.
-  destruct Hs. split; trivial.
-  transitivity s1. symmetry; assumption. assumption.
-- exfalso. tauto.
-Qed.
-
-Lemma view_stutter_one {A} {S: sys A}
-      (R: relation A) {E: Equivalence R} :
-  forall s1 s2,
-    R s1 s2 ->
-    set_equiv stutter
-              (view R (trace_one S s1))
-              (view R (trace_one S s2)).
-Proof.
-intros s1 s2 H.
-split; apply view_stutter_one_included; auto.
-symmetry; assumption.
-Qed.
-
-(** ** General properties. *)
-Lemma included_view_R {A} {S: sys A} (R: relation A) {E: Equivalence R}:
-  forall (t1 t2: trace S),
-    set_included stutter (view R t1) (view R t2) ->
-    forall s1,
-      In s1 (proj1_sig t1) ->
-      exists s2, In s2 (proj1_sig t2) /\ R s1 s2.
-Proof.
-intros t1 t2 Ht1t2 s1 Hs1t1.
-specialize (Ht1t2 t1).
-destruct Ht1t2 as [t2' [Ht2t2' Ht1t2']]. reflexivity.
-destruct t2 as [l2 Hl2]. destruct t2' as [l2' Hl2']. simpl_ctx.
-apply (same_view_in _ l2').
-apply (stutter_equiv_in _ _ Ht1t2' s1 Hs1t1).
-symmetry. assumption.
-Qed.
-
-Lemma set_included_view_same {A} {R: relation A} {E: Equivalence R}:
-  forall a (l1 l2: list A),
-    set_included stutter_equiv
-                 (same_view R l1) (same_view R l2) ->
-    set_included stutter_equiv
-                 (same_view R (a :: l1)) (same_view R (a :: l2)).
-Proof.
-intros a l1 l2 H l Hl.
-destruct l as [| a0  l0]; [destruct Hl |].
-destruct Hl as [Haa0 Hl1l0].
-specialize (H l0 Hl1l0).
-destruct H as [l0' [Hl2l0' Hl0l0']].
-exists (a0 :: l0'). deep_splits; auto.
-Qed.
-
-Lemma set_equiv_view_same {A} {R: relation A} {E: Equivalence R}:
-  forall a (l1 l2: list A),
-    set_equiv stutter_equiv
-              (same_view R l1) (same_view R l2) ->
-    set_equiv stutter_equiv
-              (same_view R (a :: l1)) (same_view R (a :: l2)).
-Proof.
-intros a l1 l2 [H H'].
-split; apply set_included_view_same; trivial.
-Qed.
-
-Lemma set_included_view_cons_right_add_right
-      {A} {R: relation A} {E: Equivalence R}:
-  forall a (l1 l2: list A),
-    set_included stutter_equiv
-                 (same_view R l1) (same_view R (a :: l2)) ->
-    set_included stutter_equiv
-                 (same_view R l1) (same_view R (a :: a :: l2)).
-Proof.
-intros a l1 l2 H l Hl.
-specialize (H l Hl).
-destruct H as [l0 [Hl2l0 Hll0]].
-destruct l0 as [| a0 l0]; [destruct Hl2l0 |].
-destruct Hl2l0 as [Haa0 Hl2l0].
-destruct (stutter_equiv_cons_right_inv _ _ _ Hll0) as [l' ?].
-subst l.
-destruct l1 as [| a1 l1]; [destruct Hl |].
-destruct Hl as [Ha1a0 Hl1l'].
-exists (a0 :: a0 :: l0). deep_splits; auto.
-Qed.
-
-Lemma set_included_view_cons_left_add_right
-      {A} {R: relation A} {E: Equivalence R}:
-  forall a (l1 l2: list A),
-    set_included stutter_equiv
-                 (same_view R (a :: l1)) (same_view R l2) ->
-    set_included stutter_equiv
-                 (same_view R (a :: l1)) (same_view R (a :: l2)).
-Proof.
-intros a1 l1 l2 H l Hl.
-destruct l as [| a l]; [destruct Hl |].
-specialize (H (a :: l) Hl).
-destruct H as [l0 [Hl2l0 Hll0]].
-destruct Hl as [Ha1a Hl1l].
-exists (a :: l0). deep_splits; trivial.
-apply stutter_equiv_cons_left_add_right. trivial.
-Qed.
-
-*)
-
 (** * Observations. *)
 (* Observation from a given state. *)
 Definition obs_from {A} (s : A) (S: sys A) (R: relation A)
@@ -511,37 +372,6 @@ Proof.
 intros s1 s2 H.
 apply (exploit_obs_included _ s1); auto.
 Qed.
-
-(*
-Lemma stutter_one_stutter_view {A} {S: sys A} {R: relation A} {E: Equivalence R}:
-  forall (s s' : A) (l : list A),
-    R s s' ->
-    forall (Hl: is_trace S (s :: l)),
-    stutter (exist _ (s :: l) Hl) (trace_one S s) ->
-    exists s2 : trace S -> Prop,
-      obs_from s' S R s2 /\
-      set_equiv stutter (view R (exist _ (s :: l) Hl)) s2.
-Proof.
-intros s s' l HR Hl Hstutter.
-pose (t' := exist _ _
-            (@is_trace_repeat _ S s' (length l))).
-exists (view R t'). split.
-* exists t'. split; reflexivity.
-* assert (stutter (trace_one S s') t')
-    by apply stutter_repeat.
-  split.
-  - intros t0 Htt0. exists t0. split.
-    + transitivity (exist _ _ Hl); try assumption.
-      symmetry. unfold t'. simpl_view.
-      apply (repeat_same_view R s s'); trivial.
-    + reflexivity.
-  - intros t0 Htt0. exists t0. split.
-    + transitivity t'; try assumption.
-      unfold t'. simpl_view.
-      apply (repeat_same_view R s s'); trivial.
-    + reflexivity.
-Qed.
-*)
 
 (** ** Observational equivalence. *)
 Definition obs_eq {A} (S: sys A) (R: relation A) : relation A :=
@@ -874,10 +704,6 @@ Lemma SP_two_make_trace {A} (R : relation A) {E : Equivalence R}
       /\ stutter_equiv
            (view R (exist _ (s :: a :: nil) Htrace_two))
            (view R (exist _ (s' :: l' ++ a' :: nil) Htrace)).
-      (* /\ exists l'', *)
-      (*      stutter_equiv (s :: a :: nil) l'' *)
-      (*      /\ same_view R l'' (s' :: l' ++ a' :: nil) *)
-      (*      /\ is_trace S2 l''. *)
 Proof.
 intros Hincl a s s' l HSP HR Hnext HnR.
 specialize (HSP _ _ HR). simpl in HSP.
