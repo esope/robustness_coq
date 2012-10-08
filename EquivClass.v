@@ -83,3 +83,16 @@ Proof.
 intros [H1 H2] x. apply Extensionality_Ensembles.
 split; apply class_included_rel; trivial.
 Qed.
+
+Lemma class_eq_included_rel {A}
+      (R1: relation A) {E1: Equivalence R1}
+      (R2: relation A) {E2: Equivalence R2} :
+  inclusion _ R1 R2 ->
+  forall x y,
+    class R1 x = class R1 y ->
+    class R2 x = class R2 y.
+Proof.
+intros H x y H1.
+apply class_eq_compat. apply H.
+apply class_eq_inv. assumption.
+Qed.

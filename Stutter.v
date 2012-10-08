@@ -322,11 +322,29 @@ apply stutter_equiv_app_right; assumption.
 apply stutter_equiv_app_left; assumption.
 Qed.
 
+Lemma stutter_middle {A} :
+  forall a (l1 l2: list A),
+    stutter_equiv (l1 ++ a :: a :: l2) (l1 ++ a :: l2).
+Proof.
+intros a l1 l2. revert a l2.
+induction l1; intros a' l2.
+* apply stutter_left. reflexivity.
+* repeat rewrite <- app_comm_cons. auto.
+Qed.
+
 Fixpoint repeat {A} (a: A) (n: nat) : list A :=
 match n with
 | O => nil
 | S n => a :: repeat a n
 end.
+
+Lemma map_repeat {A B} (f: A -> B) (a: A) (n: nat) :
+  map f (repeat a n) = repeat (f a) n.
+Proof.
+induction n.
+* reflexivity.
+* simpl. congruence.
+Qed.
 
 Lemma stutter_equiv_repeat {A} :
   forall (a: A) n,
@@ -461,3 +479,63 @@ destruct (stutter_equiv_app_left_inv _ _ _ _ H) as [l2' [l3' [? [? ?]]]].
 exists l2'. exists l3'. symmetry in H1. symmetry in H2. auto.
 Qed.
 
+Lemma last_nth {A} :
+  forall (l: list A) (default: A),
+    last l default = nth (length l - 1) l default.
+Proof.
+intros l default. induction l.
+* reflexivity.
+* destruct l as [|b l].
+  + reflexivity.
+  + transitivity (last (b :: l) default). reflexivity.
+    rewrite IHl. simpl.
+    replace (length l - 0) with (length l) by auto with arith.
+    reflexivity.
+Qed.
+
+Lemma last_In {A} :
+  forall (l: list A) (default: A),
+    l <> nil -> In (last l default) l.
+Proof.
+intros l default H. destruct l as [|a l].
+* exfalso. congruence.
+* rewrite last_nth. apply nth_In. auto with arith.
+Qed.
+
+Lemma last_map {A B} (f: A -> B):
+  forall (l: list A) (default: A),
+    last (map f l) (f default) = f (last l default).
+Proof.
+intros l default. induction l.
+* reflexivity.
+* simpl map. destruct l as [|b l].
+  + reflexivity.
+  + transitivity (last (map f (b :: l)) (f default)). reflexivity.
+    rewrite IHl. reflexivity.
+Qed.
+
+Lemma app_comm_cons_cons {A}:
+  forall a1 a2 (l1 l2: list A),
+    (l1 ++ a1 :: nil) ++ a2 :: l2 = l1 ++ a1 :: a2 :: l2.
+Proof.
+intros a1 a2 l1.
+generalize dependent a2. generalize dependent a1.
+induction l1; intros a1 a2 l2.
+* reflexivity.
+* simpl. f_equal. auto.
+Qed.
+
+Lemma stutter_equiv_last_inv {A} :
+  forall (l1 l2: list A) (default: A),
+    l1 <> nil -> l2 <> nil ->
+    stutter_equiv l1 l2 ->
+    last l1 default = last l2 default.
+Proof.
+intros l1 l2 default H1 H2 H.
+pose proof (@app_removelast_last _ l1 default H1) as H1'.
+rewrite H1' in H.
+pose proof (@app_removelast_last _ l2 default H2) as H2'.
+rewrite H2' in H.
+apply stutter_equiv_cons_end_inv in H.
+assumption.
+Qed.
