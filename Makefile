@@ -1,4 +1,4 @@
-MODULES := MyTactics \
+MODULES := MyTactics MyList \
 	   EquivClass SetPredicates \
 	   Lattice Kleene \
            NatLattice SetLattice RelLattice PERLattice ERLattice \

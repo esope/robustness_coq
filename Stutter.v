@@ -1,5 +1,5 @@
 Require Import MyTactics.
-Require Export List.
+Require Import MyList.
 Require Import RelationClasses.
 
 Inductive stutter_equiv {A} : list A -> list A -> Prop :=
@@ -332,41 +332,11 @@ induction l1; intros a' l2.
 * repeat rewrite <- app_comm_cons. auto.
 Qed.
 
-Fixpoint repeat {A} (a: A) (n: nat) : list A :=
-match n with
-| O => nil
-| S n => a :: repeat a n
-end.
-
-Lemma map_repeat {A B} (f: A -> B) (a: A) (n: nat) :
-  map f (repeat a n) = repeat (f a) n.
-Proof.
-induction n.
-* reflexivity.
-* simpl. congruence.
-Qed.
-
 Lemma stutter_equiv_repeat {A} :
   forall (a: A) n,
     stutter_equiv (a :: nil) (a :: repeat a n).
 Proof.
 intros a n. induction n; simpl; auto.
-Qed.
-
-Lemma repeat_length {A} :
-  forall (a: A) n, length (repeat a n) = n.
-Proof.
-intros a n. induction n; simpl in *; auto.
-Qed.
-
-Lemma repeat_nth {A} :
-  forall (a a0 : A) k n,
-    k < n ->
-    nth k (repeat a n) a0 = a.
-Proof.
-intros a a0 k n H.
-generalize dependent k. revert a. induction n; intros a k H; auto.
-simpl. destruct k; auto.
 Qed.
 
 Lemma stutter_one_inv {A} :
@@ -477,52 +447,6 @@ intros a l1 l2 l3 H.
 symmetry in H.
 destruct (stutter_equiv_app_left_inv _ _ _ _ H) as [l2' [l3' [? [? ?]]]].
 exists l2'. exists l3'. symmetry in H1. symmetry in H2. auto.
-Qed.
-
-Lemma last_nth {A} :
-  forall (l: list A) (default: A),
-    last l default = nth (length l - 1) l default.
-Proof.
-intros l default. induction l.
-* reflexivity.
-* destruct l as [|b l].
-  + reflexivity.
-  + transitivity (last (b :: l) default). reflexivity.
-    rewrite IHl. simpl.
-    replace (length l - 0) with (length l) by auto with arith.
-    reflexivity.
-Qed.
-
-Lemma last_In {A} :
-  forall (l: list A) (default: A),
-    l <> nil -> In (last l default) l.
-Proof.
-intros l default H. destruct l as [|a l].
-* exfalso. congruence.
-* rewrite last_nth. apply nth_In. auto with arith.
-Qed.
-
-Lemma last_map {A B} (f: A -> B):
-  forall (l: list A) (default: A),
-    last (map f l) (f default) = f (last l default).
-Proof.
-intros l default. induction l.
-* reflexivity.
-* simpl map. destruct l as [|b l].
-  + reflexivity.
-  + transitivity (last (map f (b :: l)) (f default)). reflexivity.
-    rewrite IHl. reflexivity.
-Qed.
-
-Lemma app_comm_cons_cons {A}:
-  forall a1 a2 (l1 l2: list A),
-    (l1 ++ a1 :: nil) ++ a2 :: l2 = l1 ++ a1 :: a2 :: l2.
-Proof.
-intros a1 a2 l1.
-generalize dependent a2. generalize dependent a1.
-induction l1; intros a1 a2 l2.
-* reflexivity.
-* simpl. f_equal. auto.
 Qed.
 
 Lemma stutter_equiv_last_inv {A} :
