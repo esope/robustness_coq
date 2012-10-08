@@ -96,3 +96,12 @@ intros H x y H1.
 apply class_eq_compat. apply H.
 apply class_eq_inv. assumption.
 Qed.
+
+Lemma not_rel_class_neq {A} (R: relation A) {E: Equivalence R} :
+  forall x y,
+    ~ R x y ->
+    class R x <> class R y.
+Proof.
+intros x y H Hn. apply H.
+apply class_eq_inv. assumption.
+Qed.

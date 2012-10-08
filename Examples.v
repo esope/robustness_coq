@@ -1,6 +1,14 @@
 (** * Examples. *)
 (** ** Example 1 from Section 3. *)
+Require Import MyTactics.
+Require Import MyList.
 Require Import Bool.
+Require Import Relations.
+Require Import RelationClasses.
+Require Import Stutter.
+Require Import Robustness.
+Require Import SetPredicates.
+Require Import EquivClass.
 
 Record state :=
 { time : bool
@@ -85,6 +93,17 @@ Proof.
 intros s H. unfold step.
 destruct s as [t h p q r]. simpl in *.
 subst t.
+congruence.
+Qed.
+
+Lemma step_time_false_not_R :
+  forall s,
+    time s = false ->
+    ~ R s (step s).
+Proof.
+intros s H. unfold step.
+destruct s as [t h p q r]. simpl in *.
+subst t. intros [? _]. simpl in *.
 congruence.
 Qed.
 
@@ -214,7 +233,7 @@ simpl. destruct (bool_dec p p').
   destruct Hss' as [v' [[t0' [Hv' Ht0's']] Htt0']].
   { exists t. split; reflexivity. }
   subst v'.
-  assert (In (step s') (proj1_sig t0')).
+  assert (In (class R (step s')) (view R t0')).
   { destruct (stutter_password_checker R t0') as [H | H].
     * exfalso.
       eapply (time_false_not_R_step s); trivial.
@@ -234,17 +253,16 @@ simpl. destruct (bool_dec p p').
     * destruct t0' as [[| a0 l0] Hl0]; [destruct Hl0 |].
       simpl in H. simpl proj1_sig. compute in Ht0's'. fold s' in Ht0's'.
       subst.
-      apply (stutter_equiv_in (proj1_sig (trace_step s'))).
+      apply (stutter_equiv_in (view R (trace_step s'))).
       + symmetry. assumption.
       + right. simpl. eauto.
   }
   assert (R (step s') s \/ R (step s') (step s)) as [? | ?].
-  { destruct Htt0' as [Htt0' Ht0't].
-    destruct (included_view_R _ _ _ Ht0't _ H) as [s1 [Hs1 Hs's1]].
-    destruct Hs1.
-    + subst s1. eauto.
+  { symmetry in Htt0'.
+    destruct (stutter_equiv_in _ _ Htt0' _ H) as [H0 | H0]; unfold class in H0.
+    + rewrite <- H0. left. reflexivity.
     + destruct H0.
-      - subst s1. eauto.
+      - rewrite <- H0. right. reflexivity.
       - destruct H0.
   }
   + destruct H0 as [H0 _].
@@ -262,25 +280,34 @@ Lemma R_included_obs:
   forall (s s': state),
     R s s' ->
     R (step s) (step s') ->
-    set_included (set_equiv stutter)
+    set_included stutter_equiv
                  (obs_from s password_checker R)
                  (obs_from s' password_checker R).
 Proof.
 intros s s' HR HR'.
 intros v [t [Hv Hts]]. subst v.
-destruct (stutter_password_checker t) as [H | H].
+destruct (stutter_password_checker R t) as [H | H].
 - destruct t as [[| a l] Hl]; [destruct Hl |].
-  compute in Hts. subst a. simpl_ctx.
-  apply stutter_one_stutter_view; trivial.
+  compute in Hts. subst a. unfold view in H. simpl in H.
+  exists (view R (trace_one password_checker s')). split.
+  * apply obs_from_self; auto.
+  * unfold view. simpl. transitivity (class R s :: nil); trivial.
+    apply class_eq_compat in HR. rewrite HR. reflexivity.
 - destruct t as [[| a l] Hl]; [destruct Hl |].
-  compute in Hts. subst a. simpl_ctx.
+  compute in Hts. subst a. unfold view in H. simpl in H.
   { case_eq (time s); intro Htime'.
     * pose proof (step_time_true_eq _ Htime') as Hstep.
       rewrite <- Hstep in H. clear Hstep.
-      assert (stutter_equiv (s :: l) (s :: nil)) as H'.
-      { transitivity (s :: s :: nil). assumption. auto. }
-      clear H. apply stutter_one_stutter_view; trivial.
-    * pose proof (step_time_false_neq _ Htime') as Hstep.
+      assert
+        (stutter_equiv (class R s :: map (class R) l) (class R s :: nil)) as H'.
+      { transitivity (class R s :: class R s :: nil). assumption. auto. }
+      clear H. exists (view R (trace_one password_checker s')). split.
+      + apply obs_from_self; auto.
+      + unfold view; simpl. transitivity (class R s :: nil). assumption.
+        apply class_eq_compat in HR. rewrite HR.
+        reflexivity.
+    * pose proof (step_time_false_not_R _ Htime') as Hstep.
+      apply not_rel_class_neq in Hstep; trivial.
       destruct (stutter_two_inv _ _ _ Hstep H) as [n1 [n2 Heq]].
       clear Hstep.
       pose (l' :=
@@ -291,24 +318,13 @@ destruct (stutter_password_checker t) as [H | H].
       pose (t' := exist _ _ Htrace').
       exists (view R t'). split.
       + exists t'. split; reflexivity.
-      + split.
-        - intros t0 Ht0. exists t0.
-          { split.
-            * transitivity (exist _ _ Hl); trivial.
-              symmetry.
-              unfold t'. simpl_view. split; trivial.
-              inversion Heq; subst.
-              apply repeat_two_same_view; trivial.
-            * reflexivity.
-          }
-        - intros t0 Ht0. exists t0.
-          { split.
-            * transitivity t'; trivial.
-              unfold t'. simpl_view. split; trivial.
-              inversion Heq; subst.
-              apply repeat_two_same_view; trivial.
-            * reflexivity.
-          }
+      + unfold view. simpl.
+        repeat rewrite map_app. simpl.
+        repeat rewrite map_repeat.
+        rewrite Heq.
+        apply class_eq_compat in HR. rewrite HR.
+        apply class_eq_compat in HR'. rewrite HR'.
+        reflexivity.
   }
 Qed.
 
@@ -316,7 +332,7 @@ Lemma R_time_included_obs:
   forall (s s': state),
     R s s' ->
     (time s = false -> password s = password s') ->
-    set_included (set_equiv stutter)
+    set_included stutter_equiv
                  (obs_from s password_checker R)
                  (obs_from s' password_checker R).
 Proof.
