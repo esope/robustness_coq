@@ -121,7 +121,7 @@ Module FAMILY.
     simpl in *. eauto.
   Defined.
 
-  Lemma big_union_uper_bound {A B} :
+  Lemma big_union_upper_bound {A B} :
     forall (f: A -> er B),
     forall a, leq (f a) (big_union f).
   Proof.
