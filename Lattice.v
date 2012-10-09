@@ -228,19 +228,22 @@ Definition lower_bounded  {T1 order1 T2 order2}
   exists y, forall x, leq y (f x).
 
 Definition directed {T order} `{PreLattice T order} (P : T -> Prop) :=
+  (exists z, P z) /\
   forall x y, P x -> P y -> exists z, (P z /\ leq x z /\ leq y z).
 
 Lemma monotone_seq_directed {T1 T2} `{L1: PreLattice T1} `{L2: PreLattice T2} :
-  forall (f : T1 -> T2),
+  forall (x: T1) (f : T1 -> T2),
     monotone f ->
     directed (fun x2 => exists x1, equiv x2 (f x1)).
 Proof.
-intros f Hf x2 y2 [x1 Hx1] [y1 Hy1].
-exists (f (join x1 y1)). split.
-* exists (join x1 y1). reflexivity.
-* split.
-  + rewrite Hx1. apply Hf. apply join_ub1.
-  + rewrite Hy1. apply Hf. apply join_ub2.
+intros x f Hf. split.
+- exists (f x). exists x. reflexivity.
+- intros x2 y2 [x1 Hx1] [y1 Hy1].
+  exists (f (join x1 y1)). split.
+  * exists (join x1 y1). reflexivity.
+  * split.
+    + rewrite Hx1. apply Hf. apply join_ub1.
+    + rewrite Hy1. apply Hf. apply join_ub2.
 Qed.
 
 Definition is_upper_bound {T order} `{PreLattice T order}
@@ -294,13 +297,18 @@ pose (P := fun z => equiv z x \/ equiv z y).
 assert (P x) as Px by (left; reflexivity).
 assert (P y) as Py by (right; reflexivity).
 assert (directed P) as Hdirected.
-  intros x1 x2 Hx1 Hx2. exists y. split.
+{ split.
+  * exists x. left. reflexivity.
+  * intros x1 x2 Hx1 Hx2. exists y. split.
     right; reflexivity.
     destruct Hx1 as [Hx1 | Hx1]; destruct Hx2 as [Hx2 | Hx2];
     rewrite Hx1; rewrite Hx2;
     split; solve [ assumption || reflexivity ].
-assert (is_sup P y) as Hsup. split; auto.
+}
+assert (is_sup P y) as Hsup.
+{ split; auto.
   intros z [Hz | Hz]; rewrite Hz; solve [ assumption || reflexivity ].
+}
 specialize (Hcont P y Hdirected Hsup).
 destruct Hcont as [sup2 [Hsup2 Heq]].
 rewrite <- Heq.
