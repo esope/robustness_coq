@@ -33,6 +33,7 @@ Require Import Stutter.
 Require Import EquivClass.
 Require Import SetPredicates.
 Require Import Classical.
+Require Import Kleene.
 
 (** * Systems. *)
 Record sys (state: Type) :=
@@ -848,6 +849,42 @@ transitivity (toER (obs_eq (sys_union S Attack) (obs_eq Attack RA))).
     - apply prop_2_1.
 Qed.
 
+(** * Iterated observations. *)
+Definition iter_obs_eq {A} (n: nat) (S: sys A) (R: relation A) : relation A :=
+  n_iter (obs_eq S) n R.
+
+Instance iter_obs_eq_Equivalence {A} {n: nat} {S: sys A}
+         {R: relation A} {E: Equivalence R} : Equivalence (iter_obs_eq n S R).
+Proof.
+generalize dependent R. induction n; intros R E.
+* auto.
+* unfold iter_obs_eq. simpl. fold (iter_obs_eq n S (obs_eq S R)).
+  specialize (IHn (obs_eq S R) (obs_eq_Equivalence S R)).
+  constructor.
+  + intros x. reflexivity.
+  + intros x y Hxy. symmetry. assumption. 
+  + intros x y z Hzy Hyz. transitivity y; assumption.
+Qed.
+
+Definition omega_obs_eq {A} (S: sys A) (R: relation A) {E: Equivalence R}:
+  er A :=
+  FAMILY.big_union (fun n => toER (iter_obs_eq n S R)).
+
+Instance omega_obs_eq_Equivalence {A}
+ (S: sys A) (R: relation A) {E: Equivalence R}:
+  Equivalence (proj1_sig (omega_obs_eq S R)).
+Proof.
+apply (proj2_sig (omega_obs_eq S R)).
+Qed.
+Hint Resolve omega_obs_eq_Equivalence.
+
+(** Proposition 4.1. *)
+(** That is related to the continuity of obs_eq. *)
+Lemma SP_omega {A} {S: sys A} {R: relation A} {E: Equivalence R}:
+  SP S (proj1_sig (omega_obs_eq S R)).
+Proof.
+Admitted.
+
 (** * Monotonicity of obs_eq (Prop 4.2). *)
 Lemma stutter_equiv_map_class_included {A}
       (R1 : relation A) {E1 : Equivalence R1}
@@ -903,7 +940,7 @@ exists (view R1 t'). split.
 + apply (stutter_equiv_map_class_included R2 R1); auto.
 Qed.
 
-(** The monotonicity lemma. *)
+(** The monotonicity lemma (Prop 4.2). *)
 Lemma obs_eq_monotone {A} {S: sys A}
       (R1: relation A) {E1: Equivalence R1}
       (R2: relation A) {E2: Equivalence R2} :
@@ -912,4 +949,20 @@ Lemma obs_eq_monotone {A} {S: sys A}
 Proof.
 intros H s s' [H2 H2']. simpl in *.
 split; apply (obs_included_monotone R1 R2); trivial.
+Qed.
+
+(** Upper bound on information leaked (Theorem 4.2). *)
+Lemma attack_leak_upper_bound {A} {S: sys A} {R: relation A} {E: Equivalence R}:
+  forall (Attack : sys A),
+    is_attack R Attack ->
+    SP Attack (proj1_sig (omega_obs_eq S R)) ->
+    leq (toER (obs_eq (sys_union S Attack) R)) (omega_obs_eq S R).
+Proof.
+intros Attack Hattack HSP.
+transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (omega_obs_eq S R)))).
++ apply obs_eq_monotone.
+  apply (FAMILY.big_union_upper_bound (fun n => toER (iter_obs_eq n S R)) 0).
++ transitivity (toER (proj1_sig (omega_obs_eq S R))).
+  apply SP_sys_union; auto. apply SP_omega.
+  unfold leq. unfold er_coarser. simpl. trivial.
 Qed.
