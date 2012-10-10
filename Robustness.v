@@ -971,7 +971,10 @@ exists sup2. split; trivial. split.
         unfold sup' in Hss'. unfold SET.big_union in Hss'. simpl in Hss'.
         split.
         * intros v [t [Hv Hts]]. subst v.
-          admit. (* I don't know how to prove that... *)
+          exists (view (fun x y : A => forall R : er A, P R -> proj1_sig R x y) t).
+          split.
+          + unfold obs_from. admit. (* I don't know how to prove that... *)
+          + reflexivity.
         * admit. (* symmetric case *)
       }
     - rewrite Heq. reflexivity.
