@@ -965,6 +965,7 @@ exists sup2. split; trivial. split.
   transitivity (obs_eq_ER S sup').
   + apply obs_eq_monotone_ER. rewrite Heq. reflexivity.
   + transitivity sup'.
+    (* This is very close to the statement of SP_omega. *)
     - { intros s s' Hss'.
         unfold sup'. unfold SET.big_union. simpl.
         unfold sup' in Hss'. unfold SET.big_union in Hss'. simpl in Hss'.
@@ -981,6 +982,18 @@ Qed.
 Lemma SP_omega {A} {S: sys A} {R: er A}:
   SP S (proj1_sig (omega_obs_eq S R)).
 Proof.
+destruct R as [R E].
+rewrite SP_iff2. intros s1 s2 Homega t1 Ht1s1.
+unfold omega_obs_eq in Homega. simpl in Homega.
+destruct (Homega 1) as [H _].
+assert (obs_from s1 S R (view R t1)) as Hobs.
+{ apply obs_from_self; auto. }
+specialize (H _ Hobs). clear Hobs.
+destruct H as [v [[t2 [Hv Ht2s3]] Ht1t2]]. subst v.
+exists t2. split; trivial.
+apply (stutter_equiv_map_class_included R); trivial.
+clear. intros s s' HR.
+(** that is impossible to prove... *)
 Admitted.
 
 (** Upper bound on information leaked (Theorem 4.2). *)

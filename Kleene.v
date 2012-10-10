@@ -9,11 +9,21 @@ match n with
 end.
 
 Lemma n_iter_correct {T} :
-  forall (f : T -> T) n x, n_iter f (S n) x = f (n_iter f n x).
+  forall (f : T -> T) n zero, n_iter f (S n) zero = f (n_iter f n zero).
 Proof.
 intros f n. induction n; intros x.
 reflexivity.
 simpl. rewrite <- IHn. reflexivity.
+Qed.
+
+Lemma f_n_iter {T} :
+  forall (f: T -> T) n zero,
+    f (n_iter f n zero) = n_iter f n (f zero).
+Proof.
+intros f n zero. destruct n.
+* reflexivity.
+* transitivity (f (n_iter f n (f zero))). reflexivity.
+  rewrite n_iter_correct. reflexivity.
 Qed.
 
 Lemma n_iter_monotone_zero {T} `{L: PreLattice T} :

@@ -1,6 +1,6 @@
-Require Export Lattice.
-
 Require Import Relations.
+Require Export Lattice.
+Require Import Kleene.
 
 Definition er A := { R : relation A | Equivalence R }.
 
@@ -135,6 +135,17 @@ Module FAMILY.
       leq (big_union f) bound.
   Proof.
   intros f bound Hbound x y H a. specialize (Hbound a x y H). trivial.
+  Qed.
+
+
+  Lemma big_union_monotone_zero {A} (zero: er A) (f: er A -> er A):
+    monotone f ->
+    monotone (fun zero => FAMILY.big_union (fun n => n_iter f n zero)).
+  Proof.
+    intros Hf R1 R2 HR x y Hxy n.
+    unfold FAMILY.big_union in Hxy. simpl in Hxy.
+    apply (n_iter_monotone_zero f Hf n R1 R2 HR x y).
+    auto.
   Qed.
 
 End FAMILY.
