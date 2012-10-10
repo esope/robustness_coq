@@ -945,17 +945,8 @@ Hint Resolve omega_obs_eq_Equivalence.
 Lemma obs_eq_continuous {A} (S: sys A): continuous (obs_eq_ER S).
 Proof.
 intros P sup Hdir Hsup.
-assert (directed (im (obs_eq_ER S) P)) as HdirIm. (* TODO: that is an abstract result *)
-{ destruct Hdir as [Hnonempty Hdir]. split.
-  * destruct Hnonempty as [z Hz].
-    exists (obs_eq_ER S z). exists z. split; auto. reflexivity.
-  * intros x y [x0 [Hx0 Hx]] [y0 [Hy0 Hy]].
-    destruct (Hdir x0 y0 Hx0 Hy0) as [z0 [Hz0 [Hx0z0 Hy0z0]]].
-    exists (obs_eq_ER S z0). splits.
-    + exists z0. split; auto. reflexivity.
-    + rewrite Hx. apply obs_eq_monotone_ER. trivial.
-    + rewrite Hy. apply obs_eq_monotone_ER. trivial.
-}
+pose proof (directed_monotone_im (obs_eq_ER S) P Hdir (obs_eq_monotone_ER S))
+  as HdirIm.
 destruct (complete_def _ HdirIm) as [sup2 Hsup2].
 assert (leq sup sup2).
 { destruct Hsup as [_ HLUB]. apply HLUB.

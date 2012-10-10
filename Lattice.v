@@ -7,6 +7,7 @@
    lies in the Breeze interpreter.
 *)
 
+Require Import MyTactics.
 Require Export RelationClasses.
 Require Export SetoidClass.
 
@@ -282,6 +283,24 @@ Definition im {T1 order1 T2 order2}
            `{PreLattice T1 order1} `{PreLattice T2 order2}
            (f : T1 -> T2) (P : T1 -> Prop) :=
   fun x2 => exists x1, P x1 /\ equiv x2 (f x1).
+
+Lemma directed_monotone_im {T1 order1 T2 order2}
+      `{PreLattice T1 order1} `{PreLattice T2 order2}
+      (f : T1 -> T2) (P : T1 -> Prop) :
+  directed P ->
+  monotone f ->
+  directed (im f P).
+Proof.
+intros [Hnonempty Hdir] Hf. split.
+* destruct Hnonempty as [z Hz].
+  exists (f z). exists z. split; auto. reflexivity.
+* intros x y [x0 [Hx0 Hx]] [y0 [Hy0 Hy]].
+  destruct (Hdir x0 y0 Hx0 Hy0) as [z0 [Hz0 [Hx0z0 Hy0z0]]].
+  exists (f z0). splits.
+  + exists z0. split; auto. reflexivity.
+  + rewrite Hx. apply Hf. trivial.
+  + rewrite Hy. apply Hf. trivial.
+Qed.
 
 Definition continuous {T1 order1 T2 order2}
            `{PreLattice T1 order1} `{PreLattice T2 order2} (f : T1 -> T2) :=
