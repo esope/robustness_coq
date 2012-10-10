@@ -1014,3 +1014,19 @@ transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (omega_obs_eq S R))))
   apply SP_sys_union; auto. apply SP_omega.
   unfold leq. unfold er_coarser. simpl. trivial.
 Qed.
+
+Lemma attack_leak_upper_bound_fixed {A} {S: sys A}
+      {R: relation A} {ER: Equivalence R}
+      {Q: relation A} {EQ: Equivalence Q}:
+  leq (toER R) (toER Q) ->
+  SP S Q ->
+  forall (Attack : sys A),
+    is_attack R Attack ->
+    SP Attack Q ->
+    leq (obs_eq_ER (sys_union S Attack) (toER R)) (toER Q).
+Proof.
+intros HRQ HSPS Attack Hattack HSPAttack.
+transitivity (toER (obs_eq (sys_union S Attack) Q)).
++ apply obs_eq_monotone. assumption.
++ apply SP_sys_union; auto.
+Qed.
