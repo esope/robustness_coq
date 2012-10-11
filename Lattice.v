@@ -337,5 +337,13 @@ Qed.
 
 Class CompletePreLattice(T: Type)(order : T -> T -> Prop) :=
 { completePreLattice_preLattice :> PreLattice T order
-; complete_def : forall P, directed P -> exists sup, is_sup P sup
+; complete_def : forall P: T -> Prop, exists sup, is_sup P sup
 }.
+
+Lemma complete_inhabited (T: Type)(order: T -> T -> Prop)
+      {C: CompletePreLattice T order} :
+  inhabited T.
+Proof.
+destruct (complete_def (fun _ : T => False)) as [t _].
+exact (inhabits t).
+Qed.

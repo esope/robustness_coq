@@ -388,6 +388,7 @@ constructor.
 * intros s1 s2 H. symmetry. assumption.
 * intros s1 s2 s3 H12 H23. transitivity (obs_from s2 S R); assumption.
 Qed.
+Hint Resolve obs_eq_Equivalence.
 
 Definition obs_eq_ER {A} (S: sys A) (R: er A) : er A :=
   @toER _
@@ -945,9 +946,7 @@ Hint Resolve omega_obs_eq_Equivalence.
 Lemma obs_eq_continuous {A} (S: sys A): continuous (obs_eq_ER S).
 Proof.
 intros P sup Hdir Hsup.
-pose proof (directed_monotone_im (obs_eq_ER S) P Hdir (obs_eq_monotone_ER S))
-  as HdirIm.
-destruct (complete_def _ HdirIm) as [sup2 Hsup2].
+destruct (complete_def (im (obs_eq_ER S) P)) as [sup2 Hsup2].
 assert (leq sup sup2).
 { destruct Hsup as [_ HLUB]. apply HLUB.
   intros R HR. transitivity (obs_eq_ER S R).

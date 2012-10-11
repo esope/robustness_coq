@@ -76,6 +76,6 @@ End SET.
 Instance SetCompletePreLattice {A} :
   CompletePreLattice (Ensemble A) (Included A) := { }.
 Proof.
-intros P HP.
+intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.
 Defined.

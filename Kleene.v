@@ -158,7 +158,7 @@ intros zero f Hzero Hf_continuous.
 assert (monotone f) as Hf_monotone by (apply continuous_monotone; trivial).
 pose (chain := iteration_chain zero f).
 pose (HchainDirected := iteration_chain_directed zero f Hzero Hf_monotone).
-destruct (complete_def chain HchainDirected) as [sup Hsup].
+destruct (complete_def chain) as [sup Hsup].
 destruct (Hf_continuous chain sup HchainDirected Hsup)
   as [sup2 [Hsup2IsSup Hsup2Eq]].
 exists sup. split; trivial. split.

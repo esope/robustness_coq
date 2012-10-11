@@ -184,6 +184,6 @@ End SET.
 Instance RelCompletePreLattice {A} :
   CompletePreLattice (er A) er_coarser := { }.
 Proof.
-intros P HP.
+intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.
 Defined.
