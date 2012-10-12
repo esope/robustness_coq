@@ -33,7 +33,7 @@ Require Import Stutter.
 Require Import EquivClass.
 Require Import SetPredicates.
 Require Import Classical.
-Require Import Kleene.
+Require Import KnasterTarski.
 
 (** * Systems. *)
 Record sys (state: Type) :=
@@ -929,88 +929,65 @@ apply obs_eq_monotone. assumption.
 Qed.
 
 (** * Iterated observations. *)
-Definition iter_obs_eq {A} (n: nat) (S: sys A) (R: er A) : er A :=
-  n_iter (obs_eq_ER S) n R.
+Definition iter_obs_eq {A} (o: Ord) (S: sys A) (R: er A) : er A :=
+  trans_iter (obs_eq_ER S) o R.
 
-Definition omega_obs_eq {A} (S: sys A) (R: er A):
+Definition limit_obs_eq {A} (S: sys A) (R: er A):
   er A :=
-  FAMILY.big_union (fun n => iter_obs_eq n S R).
+  FAMILY.big_union (fun o => iter_obs_eq o S R).
 
-Instance omega_obs_eq_Equivalence {A} (S: sys A) (R: er A):
-  Equivalence (proj1_sig (omega_obs_eq S R)).
+Instance limit_obs_eq_Equivalence {A} (S: sys A) (R: er A):
+  Equivalence (proj1_sig (limit_obs_eq S R)).
 Proof.
-apply (proj2_sig (omega_obs_eq S R)).
+apply (proj2_sig (limit_obs_eq S R)).
 Qed.
-Hint Resolve omega_obs_eq_Equivalence.
-
-Lemma obs_eq_continuous {A} (S: sys A): continuous (obs_eq_ER S).
-Proof.
-intros P sup Hdir Hsup.
-destruct (complete_def (im (obs_eq_ER S) P)) as [sup2 Hsup2].
-assert (leq sup sup2).
-{ destruct Hsup as [_ HLUB]. apply HLUB.
-  intros R HR. transitivity (obs_eq_ER S R).
-  apply prop_2_1. destruct Hsup2 as [HUB2 _].
-  apply HUB2. exists R. split. trivial. reflexivity.
-}
-exists sup2. split; trivial. split.
-* destruct Hsup2 as [_ HLUB2]. apply HLUB2.
-  intros R [R0 [HR0 HR]]. rewrite HR.
-  apply obs_eq_monotone_ER. destruct Hsup as [HUB _]. auto.
-* transitivity sup; trivial.
-  pose (sup' := SET.big_union P).
-  pose proof (SET.big_union_is_sup P) as Hsup'.
-  assert (equiv sup sup') as Heq. { apply (is_sup_unique P); trivial. }
-  transitivity (obs_eq_ER S sup').
-  + apply obs_eq_monotone_ER. rewrite Heq. reflexivity.
-  + transitivity sup'.
-    (* This is very close to the statement of SP_omega. *)
-    - { intros s s' Hss'.
-        unfold sup'. unfold SET.big_union. simpl.
-        unfold sup' in Hss'. unfold SET.big_union in Hss'. simpl in Hss'.
-        split.
-        * intros v [t [Hv Hts]]. subst v.
-          exists (view (fun x y : A => forall R : er A, P R -> proj1_sig R x y) t).
-          split.
-          + unfold obs_from. admit. (* I don't know how to prove that... *)
-          + reflexivity.
-        * admit. (* symmetric case *)
-      }
-    - rewrite Heq. reflexivity.
-Qed.
+Hint Resolve limit_obs_eq_Equivalence.
 
 (** Proposition 4.1. *)
 (** That is related to the continuity of obs_eq. *)
-Lemma SP_omega {A} {S: sys A} {R: er A}:
-  SP S (proj1_sig (omega_obs_eq S R)).
+Lemma SP_limit {A} {S: sys A} {R: er A}:
+  SP S (proj1_sig (limit_obs_eq S R)).
 Proof.
-destruct R as [R E].
-rewrite SP_iff2. intros s1 s2 Homega t1 Ht1s1.
-unfold omega_obs_eq in Homega. simpl in Homega.
-destruct (Homega 1) as [H _].
-assert (obs_from s1 S R (view R t1)) as Hobs.
-{ apply obs_from_self; auto. }
-specialize (H _ Hobs). clear Hobs.
-destruct H as [v [[t2 [Hv Ht2s3]] Ht1t2]]. subst v.
-exists t2. split; trivial.
-apply (stutter_equiv_map_class_included R); trivial.
-clear. intros s s' HR.
-(** that is impossible to prove... *)
-Admitted.
+unfold SP. transitivity (limit_obs_eq S R).
+* transitivity (obs_eq_ER S (limit_obs_eq S R)).
+  + intros s s' Hss'. simpl in *. assumption.
+  + pose proof
+         (generalized_knaster_tarski_lfp
+            R (obs_eq_ER S)
+            (prop_2_1 S (proj1_sig R))
+            (obs_eq_monotone_ER S)) as H.
+    destruct H as [sup [Hsup [[Hfp _] _]]].
+    assert (equiv (limit_obs_eq S R) sup) as [Hsup1 Hsup2].
+    { apply (is_sup_unique (trans_iteration_chain R (obs_eq_ER S))); trivial.
+      split.
+      * intros R' [o Heq]. rewrite Heq. unfold limit_obs_eq.
+        unfold iter_obs_eq.
+        apply
+          (FAMILY.big_union_upper_bound
+             (fun o0 : Ord => trans_iter (obs_eq_ER S) o0 R)).
+      * intros R' HR'.
+        apply (FAMILY.big_union_least).
+        intro o. apply HR'. exists o. reflexivity.
+    }
+    transitivity (obs_eq_ER S sup).
+    apply obs_eq_monotone_ER; trivial.
+    transitivity sup; trivial.
+* intros s s' Hss'. simpl in *. assumption.
+Qed.
 
 (** Upper bound on information leaked (Theorem 4.2). *)
 Lemma attack_leak_upper_bound {A} {S: sys A} {R: er A}:
   forall (Attack : sys A),
     @is_attack _ (proj1_sig R) (proj2_sig R) Attack ->
-    SP Attack (proj1_sig (omega_obs_eq S R)) ->
-    leq (obs_eq_ER (sys_union S Attack) R) (omega_obs_eq S R).
+    SP Attack (proj1_sig (limit_obs_eq S R)) ->
+    leq (obs_eq_ER (sys_union S Attack) R) (limit_obs_eq S R).
 Proof.
 intros Attack Hattack HSP.
-transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (omega_obs_eq S R)))).
+transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (limit_obs_eq S R)))).
 + apply obs_eq_monotone.
-  apply (FAMILY.big_union_upper_bound (fun n => iter_obs_eq n S R) 0).
-+ transitivity (toER (proj1_sig (omega_obs_eq S R))).
-  apply SP_sys_union; auto. apply SP_omega.
+  apply (FAMILY.big_union_upper_bound (fun n => iter_obs_eq n S R) O_Ord).
++ transitivity (toER (proj1_sig (limit_obs_eq S R))).
+  apply SP_sys_union; auto. apply SP_limit.
   unfold leq. unfold er_coarser. simpl. trivial.
 Qed.
 

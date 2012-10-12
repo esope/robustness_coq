@@ -1,7 +1,7 @@
 Require Import MyTactics.
 Require Import Lattice.
 Require Import SetLattice.
-Require Import Ordinals.
+Require Export Ordinals.
 
 Theorem tarski_greatest_fixed_point {T order}
         `{L: CompletePreLattice T order} `{B: BottomPreLattice T order}:
