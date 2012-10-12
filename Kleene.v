@@ -141,7 +141,7 @@ generalize dependent y. induction n; intros y Hy.
 Qed.
 
 (** Kleene least fixed point theorem, generalized to an arbitraty starting point. *)
-Theorem generalized_kleene_fixed_point {T order}
+Theorem generalized_kleene_lfp {T order}
         `{L: CompletePreLattice T order} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
@@ -259,7 +259,7 @@ apply fixed_point_is_sup_chain; auto using bottom_minimum.
 Qed.
 
 (** Kleene least fixed point theorem. *)
-Theorem kleene_fixed_point {T order}
+Theorem kleene_lfp {T order}
         `{L: CompletePreLattice T order} `{B: BottomPreLattice T order}:
   forall (f: T -> T),
     continuous f ->
@@ -270,7 +270,7 @@ Theorem kleene_fixed_point {T order}
 Proof.
 intros f H.
 pose proof
-     (generalized_kleene_fixed_point bottom f (bottom_minimum (f bottom)) H)
+     (generalized_kleene_lfp bottom f (bottom_minimum (f bottom)) H)
   as HKleene.
 destruct HKleene as [sup [Hsup [Hfp Hlfp]]].
 exists sup. splits; auto.
