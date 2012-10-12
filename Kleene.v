@@ -124,9 +124,6 @@ apply H. exists (S n). rewrite n_iter_correct.
 apply monotone_equiv_compat; auto.
 Qed.
 
-Definition is_fixed_point {T} `{L : Setoid T} (f : T -> T) (x : T) :=
-  equiv (f x) x.
-
 Lemma fixed_point_is_sup_chain {T} `{L : PreLattice T} :
   forall zero (f: T -> T),
     monotone f ->

@@ -337,7 +337,7 @@ Qed.
 
 Class CompletePreLattice(T: Type)(order : T -> T -> Prop) :=
 { completePreLattice_preLattice :> PreLattice T order
-; complete_def : forall P: T -> Prop, exists sup, is_sup P sup
+; complete_def : forall P: T -> Prop, { sup: T | is_sup P sup }
 }.
 
 Lemma complete_inhabited (T: Type)(order: T -> T -> Prop)
@@ -347,3 +347,6 @@ Proof.
 destruct (complete_def (fun _ : T => False)) as [t _].
 exact (inhabits t).
 Qed.
+
+Definition is_fixed_point {T} `{L : Setoid T} (f : T -> T) (x : T) :=
+  equiv (f x) x.
