@@ -75,7 +75,7 @@ Qed.
 (** The set of all natural numbers. *)
 Definition Naturals : nat -> Prop := fun _ => True.
 
-Lemma Naturals_directed : directed Naturals.
+Lemma Naturals_sup_directed : sup_directed Naturals.
 Proof.
 split.
 * exists 0. compute. trivial.

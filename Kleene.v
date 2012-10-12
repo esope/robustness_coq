@@ -73,13 +73,13 @@ Qed.
 Definition iteration_chain {T leq} `{PreOrder T leq} (zero: T) (f: T -> T) :=
   fun x => exists n, equiv x (n_iter f n zero).
 
-Lemma iteration_chain_directed {T leq} `{PreOrder T leq} :
+Lemma iteration_chain_sup_directed {T leq} `{PreOrder T leq} :
   forall (zero: T) (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
-    directed (iteration_chain zero f).
+    sup_directed (iteration_chain zero f).
 Proof.
-intros zero f Hzero Hf. apply (monotone_seq_directed 0).
+intros zero f Hzero Hf. apply (monotone_seq_sup_directed 0).
 apply n_iter_monotone; trivial.
 Qed.
 
@@ -146,18 +146,18 @@ Theorem generalized_kleene_lfp {T leq}
         `{L: JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
-    continuous f ->
+    sup_continuous f ->
     exists sup,
       is_sup (iteration_chain zero f) sup
       /\ is_fixed_point f sup
       /\ (forall y, leq zero y -> is_fixed_point f y -> leq sup y).
 Proof.
-intros zero f Hzero Hf_continuous.
-assert (monotone f) as Hf_monotone by (apply continuous_monotone; trivial).
+intros zero f Hzero Hf_sup_continuous.
+assert (monotone f) as Hf_monotone by (apply sup_continuous_monotone; trivial).
 pose (chain := iteration_chain zero f).
-pose (HchainDirected := iteration_chain_directed zero f Hzero Hf_monotone).
+pose (HchainSup_Directed := iteration_chain_sup_directed zero f Hzero Hf_monotone).
 destruct (join_complete chain) as [sup Hsup].
-destruct (Hf_continuous chain sup HchainDirected Hsup)
+destruct (Hf_sup_continuous chain sup HchainSup_Directed Hsup)
   as [sup2 [Hsup2IsSup Hsup2Eq]].
 exists sup. split; trivial. split.
 * split.
@@ -171,11 +171,11 @@ exists sup. split; trivial. split.
   apply fixed_point_is_sup_chain; trivial.
 Qed.
 
-Lemma iterated_fun_continuous {T leq} {L: PreOrder leq}:
+Lemma iterated_fun_sup_continuous {T leq} {L: PreOrder leq}:
   forall (zero: T) (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
-    continuous (fun (n: nat) => n_iter f n zero).
+    sup_continuous (fun (n: nat) => n_iter f n zero).
 Proof.
 intros zero f Hzero Hf P nsup Hdir Hsup.
 pose (g := fun (n: nat) => n_iter f n zero).
@@ -207,12 +207,12 @@ intros f Hf. apply n_iter_monotone; trivial.
 apply bottom_minimum.
 Qed.
 
-Lemma iteration_chain_directed {T leq} `{L: PreOrder T leq} `{HasBottom T leq} :
+Lemma iteration_chain_sup_directed {T leq} `{L: PreOrder T leq} `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
-    directed (iteration_chain bottom f).
+    sup_directed (iteration_chain bottom f).
 Proof.
-intros f Hf. apply iteration_chain_directed; trivial.
+intros f Hf. apply iteration_chain_sup_directed; trivial.
 apply bottom_minimum.
 Qed.
 
@@ -265,7 +265,7 @@ Theorem kleene_lfp {T leq}
         `{PreOrder T leq}
         `{L: JoinCompletePreLattice T leq} `{B: HasBottom T leq}:
   forall (f: T -> T),
-    continuous f ->
+    sup_continuous f ->
     exists sup,
       is_sup (iteration_chain bottom f) sup
       /\ is_fixed_point f sup
@@ -280,14 +280,14 @@ exists sup. splits; auto.
 * intros y Hy. apply Hlfp; trivial. apply bottom_minimum.
 Qed.
 
-Lemma iterated_fun_continuous {T leq} {L: PreOrder leq}
+Lemma iterated_fun_sup_continuous {T leq} {L: PreOrder leq}
       `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
-    continuous (fun (n: nat) => n_iter f n bottom).
+    sup_continuous (fun (n: nat) => n_iter f n bottom).
 Proof.
 intros f Hf.
-apply iterated_fun_continuous; auto; apply bottom_minimum.
+apply iterated_fun_sup_continuous; auto; apply bottom_minimum.
 Qed.
 
 End Bottom.

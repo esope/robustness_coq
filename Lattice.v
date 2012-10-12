@@ -52,6 +52,7 @@ Class BottomMeetPreLattice(T: Type)(leq : T -> T -> Prop) {H: PreOrder leq} :=
 ; bottomPreLattice_hasBottom :> HasBottom T leq
 }.
 
+(** * Properties of lattices. *)
 Section Lattice_properties.
 
 Context {T} {leq: T -> T -> Prop} {P: PreOrder leq}.
@@ -225,6 +226,10 @@ intros t. split.
 * apply meet_glb; [ reflexivity | apply top_maximum ].
 Qed.
 
+(** * More definitions. *)
+Definition is_fixed_point {T} `{L : Setoid T} (f : T -> T) (x : T) :=
+  equiv (f x) x.
+
 Definition monotone {T1 order1 T2 order2}
            `{PreOrder _ order1} `{PreOrder _ order2} (f : T1 -> T2) :=
   forall x y, order1 x y -> order2 (f x) (f y).
@@ -237,23 +242,26 @@ Proof.
 intros f Hf x y [Hxy Hyx]. split; auto.
 Qed.
 
+Definition im {T1 T2 leq} `{PreOrder T2 leq}
+           (f : T1 -> T2) (P : T1 -> Prop) :=
+  fun x2 => exists x1, P x1 /\ equiv x2 (f x1).
+
+(** * Supremas: least upper bounds. *)
+Section sup.
+
 Definition upper_bounded {T1 T2 leq}
            `{PreOrder T2 leq} (f : T1 -> T2) :=
   exists y, forall x, leq (f x) y.
 
-Definition lower_bounded  {T1 T2 leq}
-           `{PreLattice T2 leq} (f : T1 -> T2) :=
-  exists y, forall x, leq y (f x).
-
-Definition directed {T leq} `{PreOrder T leq} (P : T -> Prop) :=
+Definition sup_directed {T leq} `{PreOrder T leq} (P : T -> Prop) :=
   (exists z, P z) /\
   forall x y, P x -> P y -> exists z, (P z /\ leq x z /\ leq y z).
 
-Lemma monotone_seq_directed {T1 T2 leq1 leq2}
+Lemma monotone_seq_sup_directed {T1 T2 leq1 leq2}
       `{L1: JoinPreLattice T1 leq1} `{L2: PreOrder T2 leq2} :
   forall (x: T1) (f : T1 -> T2),
     monotone f ->
-    directed (fun x2 => exists x1, equiv x2 (f x1)).
+    sup_directed (fun x2 => exists x1, equiv x2 (f x1)).
 Proof.
 intros x f Hf. split.
 - exists (f x). exists x. reflexivity.
@@ -297,16 +305,12 @@ Proof.
 intros P sup1 sup2 [H1UB H1L] [H2UB H2L]. split; auto.
 Qed.
 
-Definition im {T1 T2 leq} `{PreOrder T2 leq}
-           (f : T1 -> T2) (P : T1 -> Prop) :=
-  fun x2 => exists x1, P x1 /\ equiv x2 (f x1).
-
-Lemma directed_monotone_im {T1 leq1 T2 leq2}
+Lemma sup_directed_monotone_im {T1 leq1 T2 leq2}
       `{PreOrder T1 leq1} `{PreOrder T2 leq2}
       (f : T1 -> T2) (P : T1 -> Prop) :
-  directed P ->
+  sup_directed P ->
   monotone f ->
-  directed (im f P).
+  sup_directed (im f P).
 Proof.
 intros [Hnonempty Hdir] Hf. split.
 * destruct Hnonempty as [z Hz].
@@ -319,20 +323,20 @@ intros [Hnonempty Hdir] Hf. split.
   + rewrite Hy. apply Hf. trivial.
 Qed.
 
-Definition continuous {T1 leq1 T2 leq2}
+Definition sup_continuous {T1 leq1 T2 leq2}
            `{PreOrder T1 leq1} `{PreOrder T2 leq2} (f : T1 -> T2) :=
-  forall P sup1, directed P -> is_sup P sup1 ->
+  forall P sup1, sup_directed P -> is_sup P sup1 ->
   exists sup2, is_sup (im f P) sup2 /\ equiv sup2 (f sup1).
 
-Lemma continuous_monotone {T1 leq1 T2 leq2}
+Lemma sup_continuous_monotone {T1 leq1 T2 leq2}
       `{PreOrder T1 leq1} `{PreOrder T2 leq2} :
-  forall (f : T1 -> T2), continuous f -> monotone f.
+  forall (f : T1 -> T2), sup_continuous f -> monotone f.
 Proof.
 intros f Hcont x y Hleq.
 pose (P := fun z => equiv z x \/ equiv z y).
 assert (P x) as Px by (left; reflexivity).
 assert (P y) as Py by (right; reflexivity).
-assert (directed P) as Hdirected.
+assert (sup_directed P) as Hdirected.
 { split.
   * exists x. left. reflexivity.
   * intros x1 x2 Hx1 Hx2. exists y. split.
@@ -352,6 +356,120 @@ apply Hsup2.
 exists x; split; solve [ assumption || reflexivity ].
 Qed.
 
+End sup.
+
+(** * Infemas: greatest lower bounds. *)
+Section inf.
+
+Definition lower_bounded  {T1 T2 leq}
+           `{PreLattice T2 leq} (f : T1 -> T2) :=
+  exists y, forall x, leq y (f x).
+
+Definition is_lower_bound {T leq} `{PreOrder T leq}
+           (P : T -> Prop) (y : T) :=
+  forall x, P x -> leq y x.
+
+Lemma is_lower_bound_equiv_compat {T leq} `{PreOrder T leq}:
+  forall (P : T -> Prop) (x y : T),
+    is_lower_bound P x -> equiv x y -> is_lower_bound P y.
+Proof.
+intros P x y Hx Hxy z Hz.
+rewrite <- Hxy. auto.
+Qed.
+
+Definition is_inf {T leq} `{PreOrder T leq} (P : T -> Prop) (inf : T) :=
+  is_lower_bound P inf /\ (forall x, is_lower_bound P x -> leq x inf).
+
+Lemma is_inf_equiv_compat {T leq} `{PreOrder T leq}:
+  forall (P : T -> Prop) (x y : T),
+    is_inf P x -> equiv x y -> is_inf P y.
+Proof.
+intros P x y [HxLB HxL] Hxy. split.
+eauto using is_lower_bound_equiv_compat.
+intros z HzLB. rewrite <- Hxy. auto.
+Qed.
+
+Lemma is_inf_unique {T leq} `{PreOrder T leq} :
+  forall (P : T -> Prop) inf1 inf2,
+    is_inf P inf1 -> is_inf P inf2 ->
+    equiv inf1 inf2.
+Proof.
+intros P inf1 inf2 [H1LB H1L] [H2LB H2L]. split; auto.
+Qed.
+
+Definition inf_directed {T leq} `{PreOrder T leq} (P : T -> Prop) :=
+  (exists z, P z) /\
+  forall x y, P x -> P y -> exists z, (P z /\ leq z x /\ leq z y).
+
+Lemma monotone_seq_inf_directed {T1 T2 leq1 leq2}
+      `{L1: MeetPreLattice T1 leq1} `{L2: PreOrder T2 leq2} :
+  forall (x: T1) (f : T1 -> T2),
+    monotone f ->
+    inf_directed (fun x2 => exists x1, equiv x2 (f x1)).
+Proof.
+intros x f Hf. split.
+- exists (f x). exists x. reflexivity.
+- intros x2 y2 [x1 Hx1] [y1 Hy1].
+  exists (f (meet x1 y1)). split.
+  * exists (meet x1 y1). reflexivity.
+  * split.
+    + rewrite Hx1. apply Hf. apply meet_lb1.
+    + rewrite Hy1. apply Hf. apply meet_lb2.
+Qed.
+
+Lemma inf_directed_monotone_im {T1 leq1 T2 leq2}
+      `{PreOrder T1 leq1} `{PreOrder T2 leq2}
+      (f : T1 -> T2) (P : T1 -> Prop) :
+  inf_directed P ->
+  monotone f ->
+  inf_directed (im f P).
+Proof.
+intros [Hnonempty Hdir] Hf. split.
+* destruct Hnonempty as [z Hz].
+  exists (f z). exists z. split; auto. reflexivity.
+* intros x y [x0 [Hx0 Hx]] [y0 [Hy0 Hy]].
+  destruct (Hdir x0 y0 Hx0 Hy0) as [z0 [Hz0 [Hx0z0 Hy0z0]]].
+  exists (f z0). splits.
+  + exists z0. split; auto. reflexivity.
+  + rewrite Hx. apply Hf. trivial.
+  + rewrite Hy. apply Hf. trivial.
+Qed.
+
+Definition inf_continuous {T1 leq1 T2 leq2}
+           `{PreOrder T1 leq1} `{PreOrder T2 leq2} (f : T1 -> T2) :=
+  forall P inf1, inf_directed P -> is_inf P inf1 ->
+  exists inf2, is_inf (im f P) inf2 /\ equiv inf2 (f inf1).
+
+Lemma inf_continuous_monotone {T1 leq1 T2 leq2}
+      `{PreOrder T1 leq1} `{PreOrder T2 leq2} :
+  forall (f : T1 -> T2), inf_continuous f -> monotone f.
+Proof.
+intros f Hcont x y Hleq.
+pose (P := fun z => equiv x z \/ equiv y z).
+assert (P x) as Px by (left; reflexivity).
+assert (P y) as Py by (right; reflexivity).
+assert (inf_directed P) as Hdirected.
+{ split.
+  * exists x. left. reflexivity.
+  * intros x1 x2 Hx1 Hx2. exists x. split.
+    left; reflexivity.
+    destruct Hx1 as [Hx1 | Hx1]; destruct Hx2 as [Hx2 | Hx2];
+    rewrite <- Hx1; rewrite <- Hx2;
+    split; solve [ assumption || reflexivity ].
+}
+assert (is_inf P x) as Hinf.
+{ split; auto.
+  intros z [Hz | Hz]; rewrite <- Hz; solve [ assumption || reflexivity ].
+}
+specialize (Hcont P x Hdirected Hinf).
+destruct Hcont as [inf2 [Hinf2 Heq]].
+rewrite <- Heq.
+apply Hinf2.
+exists y; split; solve [ assumption || reflexivity ].
+Qed.
+
+End inf.
+
 Class JoinCompletePreLattice(T: Type)(leq : T -> T -> Prop) `{PreOrder T leq} :=
 { join_complete : forall P: T -> Prop, { sup: T | is_sup P sup }
 }.
@@ -364,5 +482,19 @@ destruct (join_complete (fun _ : T => False)) as [t _].
 exact (inhabits t).
 Qed.
 
-Definition is_fixed_point {T} `{L : Setoid T} (f : T -> T) (x : T) :=
-  equiv (f x) x.
+Class MeetCompletePreLattice(T: Type)(leq : T -> T -> Prop) `{PreOrder T leq} :=
+{ meet_complete : forall P: T -> Prop, { inf: T | is_inf P inf }
+}.
+
+Lemma meet_complete_inhabited (T: Type)(order: T -> T -> Prop)
+      `{PreOrder T order} `{MeetCompletePreLattice T order} :
+  inhabited T.
+Proof.
+destruct (meet_complete (fun _ : T => False)) as [t _].
+exact (inhabits t).
+Qed.
+
+Class CompletePreLattice(T: Type)(leq : T -> T -> Prop) `{PreOrder T leq} :=
+{ complete_join :> JoinCompletePreLattice T leq
+; complete_meet :> MeetCompletePreLattice T leq
+}.
