@@ -3,8 +3,9 @@ Require Import Lattice.
 Require Import SetLattice.
 Require Export Ordinals.
 
-Theorem tarski_greatest_fixed_point {T order}
-        `{L: CompletePreLattice T order} `{B: BottomPreLattice T order}:
+Theorem tarski_greatest_fixed_point {T leq}
+        `{PreOrder T leq}
+        `{L: JoinCompletePreLattice T leq} :
   forall (f: T -> T),
     monotone f ->
     exists sup,
@@ -13,9 +14,9 @@ Theorem tarski_greatest_fixed_point {T order}
 Proof.
 intros f Hf.
 pose (P := fun t : T => leq t (f t)).
-destruct (complete_def P) as [sup [HUB HLUB]].
+destruct (join_complete P) as [sup [HUB HLUB]].
 exists sup.
-assert (leq sup (f sup)) as H.
+assert (leq sup (f sup)) as Hsup.
 { apply HLUB. intros t Ht. transitivity (f t); trivial.
   apply Hf. apply HUB; trivial.
 }
@@ -25,18 +26,22 @@ assert (leq sup (f sup)) as H.
 Qed.
 
 (* Transfinite iteration of a function. *)
-Fixpoint trans_iter {T order} {L: CompletePreLattice T order}
-           (f: T -> T) (o: Ord) (zero : T) : T :=
+Fixpoint trans_iter {T leq}
+         `{PreOrder T leq}
+         {L: JoinCompletePreLattice T leq}
+         (f: T -> T) (o: Ord) (zero : T) : T :=
   match o with
     | O_Ord => zero
     | S_Ord o' => f (trans_iter f o' zero)
     | lim_Ord os =>
       let (sup, _) :=
-          (complete_def (fun t : T => exists n, t = trans_iter f (os n) zero))
+          (join_complete (fun t : T => exists n, t = trans_iter f (os n) zero))
       in sup
   end.
 
-Lemma trans_iter_monotone_zero {T order} {L: CompletePreLattice T order}
+Lemma trans_iter_monotone_zero {T leq}
+      `{PreOrder T leq}
+      {L: JoinCompletePreLattice T leq}
       (f: T -> T) (o: Ord):
   monotone f ->
   monotone (trans_iter f o).
@@ -46,11 +51,11 @@ intros Hf x y Hxy. induction o.
 * simpl. apply Hf. assumption.
 * simpl.
   destruct
-    (complete_def
+    (join_complete
        (fun t : T => exists n : nat, t = trans_iter f (o n) x))
     as [xsup [HxUB HxLUB]].
   destruct
-    (complete_def
+    (join_complete
        (fun t : T => exists n : nat, t = trans_iter f (o n) y))
     as [ysup [HyUB HyLUB]].
   apply HxLUB.
@@ -59,7 +64,9 @@ intros Hf x y Hxy. induction o.
   apply HyUB. eauto.
 Qed.
 
-Lemma trans_iter_ascending_S {T} `{L: CompletePreLattice T} :
+Lemma trans_iter_ascending_S {T leq}
+      `{PreOrder T leq}
+      `{L: JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     monotone f ->
     leq zero (f zero) ->
@@ -68,7 +75,7 @@ Lemma trans_iter_ascending_S {T} `{L: CompletePreLattice T} :
 Proof.
 intros zero f Hf Hzero o. induction o; simpl; auto.
 * destruct
-    (complete_def
+    (join_complete
        (fun t : T => exists n : nat, t = trans_iter f (o n) zero))
     as [sup [HUB HLUB]].
   apply HLUB. intros t [n Heq]; subst t.
@@ -76,7 +83,9 @@ intros zero f Hf Hzero o. induction o; simpl; auto.
   simpl. apply Hf. apply HUB. eauto.
 Qed.
 
-Lemma trans_iter_lower_bound {T order} {L: CompletePreLattice T order}:
+Lemma trans_iter_lower_bound {T leq}
+      `{PreOrder T leq}
+      {L: JoinCompletePreLattice T leq}:
   forall zero (f: T -> T) (o: Ord),
     leq zero (f zero) ->
     monotone f ->
@@ -87,14 +96,16 @@ intros zero f o Hzero Hf. induction o; simpl in *.
 * transitivity (trans_iter f o zero); trivial.
   apply trans_iter_ascending_S; auto.
 * destruct
-    (complete_def
+    (join_complete
        (fun t : T => exists n : nat, t = trans_iter f (o n) zero))
     as [sup [HUB HLUB]].
   transitivity (trans_iter f (o 0) zero); trivial.
   apply HUB. eauto.
 Qed.
 
-Lemma trans_iter_S_pred {T order} {L : CompletePreLattice T order} :
+Lemma trans_iter_S_pred {T leq}
+      `{PreOrder T leq}
+      {L : JoinCompletePreLattice T leq} :
   forall zero (f : T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -108,14 +119,16 @@ induction o; simpl in *.
   apply trans_iter_ascending_S; auto.
 - destruct t as [n Hn].
   destruct
-    (complete_def
+    (join_complete
        (fun t0 : T => exists n : nat, t0 = trans_iter f (o n) zero))
     as [sup [HUB HLUB]].
   transitivity (trans_iter f (o n) zero); trivial.
   apply HUB. eauto.
 Qed.
 
-Lemma trans_iter_monotone {T order} {L: CompletePreLattice T order}:
+Lemma trans_iter_monotone {T leq}
+      `{PreOrder T leq}
+      {L: JoinCompletePreLattice T leq}:
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -128,17 +141,21 @@ intros zero f Hzero Hf o1. induction o1; intros o2 Hord; simpl in *.
   + simpl. apply Hf. auto.
   + apply trans_iter_S_pred; auto.
 * destruct
-    (complete_def
+    (join_complete
        (fun t0 : T => exists n : nat, t0 = trans_iter f (o n) zero))
     as [sup [HUB HLUB]].
   apply HLUB. intros t [n Heq]; subst t. auto.
 Qed.
 
-Definition trans_iteration_chain {T} `{CompletePreLattice T}
+Definition trans_iteration_chain {T leq}
+           `{PreOrder T leq}
+           `{JoinCompletePreLattice T leq}
            (zero: T) (f: T -> T) :=
   fun x => exists o, equiv x (trans_iter f o zero).
 
-Lemma trans_iter_upper_bound_f {T} `{L: CompletePreLattice T} :
+Lemma trans_iter_upper_bound_f {T leq}
+      `{PreOrder T leq}
+      `{L: JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -147,18 +164,20 @@ Lemma trans_iter_upper_bound_f {T} `{L: CompletePreLattice T} :
       (forall o, leq (trans_iter f o zero) b) ->
       forall o, leq (trans_iter f o zero) (f b).
 Proof.
-intros zero f Hzero Hf b Hb H o. induction o.
+intros zero f Hzero Hf b Hb Hleq o. induction o.
 * assumption.
 * simpl. auto.
 * simpl.
   destruct
-    (complete_def
+    (join_complete
        (fun t : T => exists n : nat, t = trans_iter f (o n) zero))
     as [sup [HUB HLUB]].
   apply HLUB. intros t [n Heq]; subst t. auto.
 Qed.
 
-Lemma trans_iteration_chain_upper_bound_f {T} `{L: CompletePreLattice T} :
+Lemma trans_iteration_chain_upper_bound_f {T leq}
+      `{PreOrder T leq}
+      `{L: JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -167,27 +186,31 @@ Lemma trans_iteration_chain_upper_bound_f {T} `{L: CompletePreLattice T} :
     is_upper_bound (trans_iteration_chain zero f) b ->
     is_upper_bound (trans_iteration_chain zero f) (f b).
 Proof.
-intros zero f Hzero Hf b Hb H x [o Hx]. rewrite Hx.
+intros zero f Hzero Hf b Hb HUB x [o Hx]. rewrite Hx.
 apply trans_iter_upper_bound_f; trivial.
 * transitivity (f zero); trivial. apply Hf. trivial.
-* intro o'. apply H. exists o'. reflexivity.
+* intro o'. apply HUB. exists o'. reflexivity.
 Qed.
 
-Lemma trans_iteration_chain_upper_bound_im_f {T} `{L: CompletePreLattice T} :
+Lemma trans_iteration_chain_upper_bound_im_f {T leq}
+      `{PreOrder T leq}
+      `{L: JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     monotone f ->
     forall b,
       is_upper_bound (trans_iteration_chain zero f) b ->
       is_upper_bound (im f (trans_iteration_chain zero f)) b.
 Proof.
-intros zero f Hf b H. intros y [x [[o Hx] Heq]]. rewrite Heq.
-apply H. exists (S_Ord o).
+intros zero f Hf b HUB. intros y [x [[o Hx] Heq]]. rewrite Heq.
+apply HUB. exists (S_Ord o).
 transitivity (f (trans_iter f o zero)).
 apply monotone_equiv_compat; auto.
 reflexivity.
 Qed.
 
-Lemma fixed_point_is_sup_chain {T} `{L : CompletePreLattice T} :
+Lemma fixed_point_is_sup_chain {T leq}
+      `{PreOrder T leq}
+      `{L : JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     monotone f ->
     forall x,
@@ -203,14 +226,16 @@ generalize dependent y. induction o; intros y Hy.
   apply Hf. apply IHo. reflexivity.
 * rewrite Hy. simpl.
   destruct
-    (complete_def
+    (join_complete
        (fun t : T => exists n : nat, t = trans_iter f (o n) zero))
     as [sup [HUB HLUB]].
   apply HLUB. intros t [n Heq]; subst t.
-  apply (H n). reflexivity.
+  apply (H1 n). reflexivity.
 Qed.
 
-Lemma trans_iter_reaches_limit {T order} {L: CompletePreLattice T order}:
+Lemma trans_iter_reaches_limit {T leq}
+      `{PreOrder T leq}
+      {L: JoinCompletePreLattice T leq}:
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -226,8 +251,9 @@ Qed.
 
 (** Knaster-Tarski least fixed point theorem,
     generalized to an arbitraty starting point. *)
-Theorem generalized_knaster_tarski_lfp {T order}
-        `{L: CompletePreLattice T order} :
+Theorem generalized_knaster_tarski_lfp {T leq}
+        `{PreOrder T leq}
+        `{L: JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -238,7 +264,7 @@ Theorem generalized_knaster_tarski_lfp {T order}
 Proof.
 intros zero f Hzero Hf.
 pose (chain := trans_iteration_chain zero f).
-destruct (complete_def chain) as [sup Hsup].
+destruct (join_complete chain) as [sup Hsup].
 exists sup. split; trivial. split.
 * split.
   - pose proof Hsup as [HUB HLUB].

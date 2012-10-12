@@ -496,7 +496,7 @@ Qed.
 
 (** * The security property. *)
 Definition SP {A} (S: sys A) (R: relation A) {E: Equivalence R} :=
-  leq (toER (obs_eq S R)) (toER R).
+  coarser (toER (obs_eq S R)) (toER R).
 
 Lemma SP_compat_ER_equiv {A} (S: sys A):
   forall (R1 R2: relation A) (E1: Equivalence R1) (E2: Equivalence R2),
@@ -555,7 +555,7 @@ split; intro H.
 Qed.
 
 Lemma prop_2_1 {A} (S: sys A) (R: relation A) {E: Equivalence R} :
-  leq (toER R) (toER (obs_eq S R)).
+  coarser (toER R) (toER (obs_eq S R)).
 Proof.
 exact (@obs_eq_R A S R E).
 Qed.
@@ -659,7 +659,7 @@ Definition robust {A} (S: sys A) (AttackClass: sys A -> Prop)
            (H: Ensembles.Included _ AttackClass (@is_attack _ RA E)) :=
   forall (Attack : sys A),
     Ensembles.In _ AttackClass Attack ->
-    leq (toER (obs_eq (sys_union S Attack) RA)) (toER (obs_eq S RA)).
+    coarser (toER (obs_eq (sys_union S Attack) RA)) (toER (obs_eq S RA)).
 
 Lemma full_class_included {A} (RA: relation A) {E: Equivalence RA}:
   Ensembles.Included _ (is_attack RA) (is_attack RA).
@@ -897,7 +897,7 @@ Qed.
 Lemma obs_included_monotone {A} {S: sys A}
       (R1: relation A) {E1: Equivalence R1}
       (R2: relation A) {E2: Equivalence R2} :
-  leq (toER R1) (toER R2) ->
+  coarser (toER R1) (toER R2) ->
   forall s s',
     set_included stutter_equiv (obs_from s S R2) (obs_from s' S R2) ->
     set_included stutter_equiv (obs_from s S R1) (obs_from s' S R1).
@@ -915,8 +915,8 @@ Qed.
 Lemma obs_eq_monotone {A} {S: sys A}
       (R1: relation A) {E1: Equivalence R1}
       (R2: relation A) {E2: Equivalence R2} :
-  leq (toER R1) (toER R2) ->
-  leq (toER (obs_eq S R1)) (toER (obs_eq S R2)).
+  coarser (toER R1) (toER R2) ->
+  coarser (toER (obs_eq S R1)) (toER (obs_eq S R2)).
 Proof.
 intros H s s' [H2 H2']. simpl in *.
 split; apply (obs_included_monotone R1 R2); trivial.
@@ -980,7 +980,7 @@ Lemma attack_leak_upper_bound {A} {S: sys A} {R: er A}:
   forall (Attack : sys A),
     @is_attack _ (proj1_sig R) (proj2_sig R) Attack ->
     SP Attack (proj1_sig (limit_obs_eq S R)) ->
-    leq (obs_eq_ER (sys_union S Attack) R) (limit_obs_eq S R).
+    coarser (obs_eq_ER (sys_union S Attack) R) (limit_obs_eq S R).
 Proof.
 intros Attack Hattack HSP.
 transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (limit_obs_eq S R)))).
@@ -988,18 +988,18 @@ transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (limit_obs_eq S R))))
   apply (FAMILY.big_union_upper_bound (fun n => iter_obs_eq n S R) O_Ord).
 + transitivity (toER (proj1_sig (limit_obs_eq S R))).
   apply SP_sys_union; auto. apply SP_limit.
-  unfold leq. unfold er_coarser. simpl. trivial.
+  unfold coarser. simpl. trivial.
 Qed.
 
 Lemma attack_leak_upper_bound_fixed {A} {S: sys A}
       {R: relation A} {ER: Equivalence R}
       {Q: relation A} {EQ: Equivalence Q}:
-  leq (toER R) (toER Q) ->
+  coarser (toER R) (toER Q) ->
   SP S Q ->
   forall (Attack : sys A),
     is_attack R Attack ->
     SP Attack Q ->
-    leq (obs_eq_ER (sys_union S Attack) (toER R)) (toER Q).
+    coarser (obs_eq_ER (sys_union S Attack) (toER R)) (toER Q).
 Proof.
 intros HRQ HSPS Attack Hattack HSPAttack.
 transitivity (toER (obs_eq (sys_union S Attack) Q)).

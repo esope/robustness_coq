@@ -3,30 +3,38 @@ Require Import Lattice.
 Require Import Ensembles.
 Require Import Constructive_sets.
 
-Instance SetPreLattice {A} : PreLattice (Ensemble A) (Included A) :=
-{ join := Union A
-; meet := Intersection A
-}.
+Instance SetIncluded_PreOrder {A} : PreOrder (Included A).
 Proof with auto with sets.
 * constructor...
+Qed.
+
+
+Instance SetJoinPreLattice {A} : JoinPreLattice (Ensemble A) (Included A) :=
+{ join := Union A }.
+Proof with auto with sets.
 * idtac...
 * idtac...
 * intros S S1 S2 H1 H2 x Hx. inversion Hx; subst; auto.
+Defined.
+
+Instance SetMeetPreLattice {A} : MeetPreLattice (Ensemble A) (Included A) :=
+{ meet := Intersection A }.
+Proof with auto with sets.
 * intros S1 S2 x Hx. inversion Hx; subst; auto.
 * intros S1 S2 x Hx. inversion Hx; subst; auto.
 * idtac...
 Defined.
 
-Instance SetTopPreLattice {A} : TopPreLattice (Ensemble A) (Included A) :=
+Instance SetHasTop {A} : HasTop (Ensemble A) (Included A) :=
 { top := Full_set A }.
 Proof.
 intros S x Hx. constructor.
 Defined.
 
-Instance SetBottomPreLattice {A} : BottomPreLattice (Ensemble A) (Included A) :=
+Instance SetHasBottom {A} : HasBottom (Ensemble A) (Included A) :=
 { bottom := Empty_set A }.
 Proof.
-intros. unfold leq. auto with sets.
+intros. auto with sets.
 Defined.
 
 Module FAMILY.
@@ -36,7 +44,7 @@ Module FAMILY.
 
   Lemma big_union_upper_bound {A B} :
     forall (f: A -> Ensemble B),
-    forall a, leq (f a) (big_union f).
+    forall a, Included _ (f a) (big_union f).
   Proof.
   intros f a b H. exists a. trivial.
   Qed.
@@ -44,8 +52,8 @@ Module FAMILY.
   Lemma big_union_least {A B} :
     forall (f: A -> Ensemble B),
     forall (bound: Ensemble B),
-      (forall a, leq (f a) bound) ->
-      leq (big_union f) bound.
+      (forall a, Included _ (f a) bound) ->
+      Included _ (big_union f) bound.
   Proof.
   intros f bound Hbound x [y Hy]. specialize (Hbound y x Hy). trivial.
   Qed.
@@ -63,8 +71,7 @@ Module SET.
   intros S. split.
   * intros aset Haset a Ha. exists aset. auto.
   * Require Import Classical.
-    intros aset Haset. apply NNPP.
-    unfold leq; simpl. intro H.
+    intros aset Haset. apply NNPP. intro H.
     assert (exists a, (big_union S) a /\ ~ aset a)
       as [a [Ha Haseta]] by firstorder.
     destruct Ha as [aset' [HPaset' Haset'a]].
@@ -73,8 +80,8 @@ Module SET.
 
 End SET.
 
-Instance SetCompletePreLattice {A} :
-  CompletePreLattice (Ensemble A) (Included A) := { }.
+Instance SetJoinCompletePreLattice {A} :
+  JoinCompletePreLattice (Ensemble A) (Included A) := { }.
 Proof.
 intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.

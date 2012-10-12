@@ -26,15 +26,15 @@ intros f n zero. destruct n.
   rewrite n_iter_correct. reflexivity.
 Qed.
 
-Lemma n_iter_monotone_zero {T} `{L: PreLattice T} :
+Lemma n_iter_monotone_zero {T leq} `{L: PreOrder T leq} :
   forall (f: T -> T), monotone f -> forall n, monotone (n_iter f n).
 Proof.
-intros f H n. induction n.
+intros f Hf n. induction n.
 * unfold monotone; auto.
 * intros x y Hxy. repeat rewrite n_iter_correct. auto.
 Qed.
 
-Lemma n_iter_ascending_1 {T} `{L: PreLattice T} :
+Lemma n_iter_ascending_1 {T leq} `{L: PreOrder T leq} :
   forall zero (f: T -> T),
     monotone f ->
     leq zero (f zero) ->
@@ -45,12 +45,12 @@ intros zero f Hf Hzero n.
 simpl. apply n_iter_monotone_zero; trivial.
 Qed.
 
-Lemma n_iter_ascending_n_plus_m {T} `{L: PreLattice T} :
+Lemma n_iter_ascending_n_plus_m {T leq} `{L: PreOrder T leq} :
   forall zero (f: T -> T), monotone f -> leq zero (f zero) ->
   forall n m, leq (n_iter f n zero) (n_iter f (n + m) zero).
 Proof.
 Require Omega.
-intros zero f H Hzero n m. destruct m.
+intros zero f Hf Hzero n m. destruct m.
 * replace (n + 0) with n by omega. reflexivity.
 * induction m.
   - replace (n + 1) with (S n) by omega. apply n_iter_ascending_1; trivial.
@@ -59,21 +59,21 @@ intros zero f H Hzero n m. destruct m.
     apply n_iter_ascending_1; trivial.
 Qed.
 
-Lemma n_iter_monotone {T} `{L: PreLattice T} :
+Lemma n_iter_monotone {T leq} `{L: PreOrder T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
     monotone (fun n => n_iter f n zero).
 Proof.
-intros zero f Hzero Hf n1 n2 H.
+intros zero f Hzero Hf n1 n2 Hn.
 replace n2 with (n1 + (n2 - n1)) by auto with arith.
 apply n_iter_ascending_n_plus_m; trivial.
 Qed.
 
-Definition iteration_chain {T} `{PreLattice T} (zero: T) (f: T -> T) :=
+Definition iteration_chain {T leq} `{PreOrder T leq} (zero: T) (f: T -> T) :=
   fun x => exists n, equiv x (n_iter f n zero).
 
-Lemma iteration_chain_directed {T} `{PreLattice T} :
+Lemma iteration_chain_directed {T leq} `{PreOrder T leq} :
   forall (zero: T) (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -83,7 +83,7 @@ intros zero f Hzero Hf. apply (monotone_seq_directed 0).
 apply n_iter_monotone; trivial.
 Qed.
 
-Lemma n_iter_upper_bound_f {T} `{L: PreLattice T} :
+Lemma n_iter_upper_bound_f {T leq} `{L: PreOrder T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -97,7 +97,7 @@ assumption.
 rewrite n_iter_correct. auto.
 Qed.
 
-Lemma iteration_chain_upper_bound_f {T} `{L: PreLattice T} :
+Lemma iteration_chain_upper_bound_f {T leq} `{L: PreOrder T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -106,13 +106,13 @@ Lemma iteration_chain_upper_bound_f {T} `{L: PreLattice T} :
     is_upper_bound (iteration_chain zero f) b ->
     is_upper_bound (iteration_chain zero f) (f b).
 Proof.
-intros zero f Hzero Hf b Hb H x [n Hx]. rewrite Hx.
+intros zero f Hzero Hf b Hb HUB x [n Hx]. rewrite Hx.
 apply n_iter_upper_bound_f; trivial.
 * transitivity (f zero); trivial. apply Hf. trivial.
-* intro n'. apply H. exists n'. reflexivity.
+* intro n'. apply HUB. exists n'. reflexivity.
 Qed.
 
-Lemma iteration_chain_upper_bound_im_f {T} `{L: PreLattice T} :
+Lemma iteration_chain_upper_bound_im_f {T leq} `{L: PreOrder T leq} :
   forall zero (f: T -> T),
     monotone f ->
     forall b,
@@ -124,7 +124,7 @@ apply H. exists (S n). rewrite n_iter_correct.
 apply monotone_equiv_compat; auto.
 Qed.
 
-Lemma fixed_point_is_sup_chain {T} `{L : PreLattice T} :
+Lemma fixed_point_is_sup_chain {T leq} `{L : PreOrder T leq} :
   forall zero (f: T -> T),
     monotone f ->
     forall x,
@@ -141,8 +141,9 @@ generalize dependent y. induction n; intros y Hy.
 Qed.
 
 (** Kleene least fixed point theorem, generalized to an arbitraty starting point. *)
-Theorem generalized_kleene_lfp {T order}
-        `{L: CompletePreLattice T order} :
+Theorem generalized_kleene_lfp {T leq}
+        `{PreOrder T leq}
+        `{L: JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     continuous f ->
@@ -155,7 +156,7 @@ intros zero f Hzero Hf_continuous.
 assert (monotone f) as Hf_monotone by (apply continuous_monotone; trivial).
 pose (chain := iteration_chain zero f).
 pose (HchainDirected := iteration_chain_directed zero f Hzero Hf_monotone).
-destruct (complete_def chain) as [sup Hsup].
+destruct (join_complete chain) as [sup Hsup].
 destruct (Hf_continuous chain sup HchainDirected Hsup)
   as [sup2 [Hsup2IsSup Hsup2Eq]].
 exists sup. split; trivial. split.
@@ -170,7 +171,7 @@ exists sup. split; trivial. split.
   apply fixed_point_is_sup_chain; trivial.
 Qed.
 
-Lemma iterated_fun_continuous {T order} {L: PreLattice T order}:
+Lemma iterated_fun_continuous {T leq} {L: PreOrder leq}:
   forall (zero: T) (f: T -> T),
     leq zero (f zero) ->
     monotone f ->
@@ -197,70 +198,72 @@ Qed.
 (** * Specialization of the above function to <<zero = bottom>>. *)
 Module Bottom.
 
-Lemma n_iter_monotone {T} `{L: BottomPreLattice T} :
+Lemma n_iter_monotone {T leq} `{L: PreOrder T leq} `{HasBottom T leq}:
   forall (f: T -> T),
     monotone f ->
     monotone (fun n => n_iter f n bottom).
 Proof.
-intros f H. apply n_iter_monotone; trivial.
+intros f Hf. apply n_iter_monotone; trivial.
 apply bottom_minimum.
 Qed.
 
-Lemma iteration_chain_directed {T} `{L: BottomPreLattice T} :
+Lemma iteration_chain_directed {T leq} `{L: PreOrder T leq} `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
     directed (iteration_chain bottom f).
 Proof.
-intros f H. apply iteration_chain_directed; trivial.
+intros f Hf. apply iteration_chain_directed; trivial.
 apply bottom_minimum.
 Qed.
 
-Lemma n_iter_upper_bound_f {T} `{L: BottomPreLattice T} :
+Lemma n_iter_upper_bound_f {T leq} `{L: PreOrder T leq} `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
     forall b,
       (forall n, leq (n_iter f n bottom) b) ->
       forall n, leq (n_iter f n bottom) (f b).
 Proof.
-intros f H b H0 n.
-apply n_iter_upper_bound_f; auto using bottom_minimum.
+intros f Hf b H0 n.
+apply n_iter_upper_bound_f; auto; apply bottom_minimum.
 Qed.
 
-Lemma iteration_chain_upper_bound_f {T} `{L: BottomPreLattice T} :
+Lemma iteration_chain_upper_bound_f {T leq} `{L: PreOrder T leq} `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
     forall b,
       is_upper_bound (iteration_chain bottom f) b ->
       is_upper_bound (iteration_chain bottom f) (f b).
 Proof.
-intros f H b H0. apply iteration_chain_upper_bound_f; auto using bottom_minimum.
+intros f Hf b H0.
+apply iteration_chain_upper_bound_f; auto; apply bottom_minimum.
 Qed.
 
-Lemma iteration_chain_upper_bound_im_f {T} `{L: BottomPreLattice T} :
+Lemma iteration_chain_upper_bound_im_f {T leq} `{L: PreOrder T leq} `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
     forall b,
       is_upper_bound (iteration_chain bottom f) b ->
       is_upper_bound (im f (iteration_chain bottom f)) b.
 Proof.
-intros f H b H0.
+intros f Hf b H0.
 apply iteration_chain_upper_bound_im_f; auto using bottom_minimum.
 Qed.
 
-Lemma fixed_point_is_sup_chain {T} `{L : BottomPreLattice T} :
+Lemma fixed_point_is_sup_chain {T leq} `{L: PreOrder T leq} `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
     forall x,
       is_fixed_point f x ->
       is_upper_bound (iteration_chain bottom f) x.
 Proof.
-intros f H x H0.
-apply fixed_point_is_sup_chain; auto using bottom_minimum.
+intros f Hf x H0.
+apply fixed_point_is_sup_chain; auto; apply bottom_minimum.
 Qed.
 
 (** Kleene least fixed point theorem. *)
-Theorem kleene_lfp {T order}
-        `{L: CompletePreLattice T order} `{B: BottomPreLattice T order}:
+Theorem kleene_lfp {T leq}
+        `{PreOrder T leq}
+        `{L: JoinCompletePreLattice T leq} `{B: HasBottom T leq}:
   forall (f: T -> T),
     continuous f ->
     exists sup,
@@ -268,22 +271,23 @@ Theorem kleene_lfp {T order}
       /\ is_fixed_point f sup
       /\ (forall y, is_fixed_point f y -> leq sup y).
 Proof.
-intros f H.
+intros f Hf.
 pose proof
-     (generalized_kleene_lfp bottom f (bottom_minimum (f bottom)) H)
+     (generalized_kleene_lfp bottom f (bottom_minimum (f bottom)) Hf)
   as HKleene.
 destruct HKleene as [sup [Hsup [Hfp Hlfp]]].
 exists sup. splits; auto.
 * intros y Hy. apply Hlfp; trivial. apply bottom_minimum.
 Qed.
 
-Lemma iterated_fun_continuous {T order} {L: BottomPreLattice T order}:
+Lemma iterated_fun_continuous {T leq} {L: PreOrder leq}
+      `{HasBottom T leq} :
   forall (f: T -> T),
     monotone f ->
     continuous (fun (n: nat) => n_iter f n bottom).
 Proof.
-intros f H.
-apply iterated_fun_continuous; auto using bottom_minimum.
+intros f Hf.
+apply iterated_fun_continuous; auto; apply bottom_minimum.
 Qed.
 
 End Bottom.

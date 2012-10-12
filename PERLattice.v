@@ -7,8 +7,15 @@ Definition per A := { R : relation A | PER A R }.
 Definition toPER {A} (R: relation A) {E: PER A R} : per A :=
   exist (PER A) R E.
 
-Definition per_coarser {A} (R1 R2: per A) :=
+Definition coarser {A} (R1 R2: per A) :=
   forall x y, proj1_sig R2 x y -> proj1_sig R1 x y.
+
+Instance coarser_PreOrder {A} : PreOrder (@coarser A).
+Proof.
+constructor.
++ intros ? ? ? ?. trivial.
++ intros ? ? ? ? ? ? ? ?. auto.
+Qed.
 
 Definition intersection A (R1 R2: per A) : per A.
 Proof.
@@ -22,6 +29,15 @@ constructor.
 * intros ? ? ? [? ?] [? ?]. split.
     eapply Htrans1. eassumption. trivial.
     eapply Htrans2. eassumption. trivial.
+Defined.
+
+Instance PERJoinPreLattice {A} : JoinPreLattice (per A) coarser :=
+{ join := intersection A }.
+Proof.
+* intros [? [? ?]] [? [? ?]] ? ? [? ?]. trivial.
+* intros [? [? ?]] [? [? ?]] ? ? [? ?]. trivial.
+* intros [? [? ?]] [? [? ?]] [? [? ?]] ? ? ? ? ?.
+    unfold coarser in *. simpl in *. split; auto.
 Defined.
 
 Definition union A (R1 R2: per A) : per A.
@@ -45,24 +61,15 @@ constructor.
     + assumption.
 Defined.
 
-Instance RelPreLattice {A} : PreLattice (per A) per_coarser :=
-{ join := intersection A
-; meet := union A
-}.
+Instance PERMeetPreLattice {A} : MeetPreLattice (per A) coarser :=
+{ meet := union A }.
 Proof.
-* constructor.
-  + intros ? ? ? ?. trivial.
-  + intros ? ? ? ? ? ? ? ?. auto.
-* intros [? [? ?]] [? [? ?]] ? ? [? ?]. trivial.
-* intros [? [? ?]] [? [? ?]] ? ? [? ?]. trivial.
-* intros [? [? ?]] [? [? ?]] [? [? ?]] ? ? ? ? ?.
-    unfold per_coarser in *. simpl in *. split; auto.
 * intros [? [? ?]] [? [? ?]] ? ? ?. apply t_step. left. trivial.
 * intros [? [? ?]] [? [? ?]] ? ? ?. apply t_step. right. trivial.
 * intros [R1 [Hsym1 Htrans1]]
          [R2 [Hsym2 Htrans2]]
          [R3 [Hsym3 Htrans3]] H12 H23 x y Hplus.
-  unfold per_coarser in *; simpl in *. induction Hplus.
+  unfold coarser in *; simpl in *. induction Hplus.
   - destruct H; auto.
   - eauto.
 Defined.
@@ -72,7 +79,7 @@ Proof.
 exists (fun _ _ => False). intuition.
 Defined.
 
-Instance RelTopPreLattice {A} : TopPreLattice (per A) per_coarser :=
+Instance PERHasTop {A} : HasTop (per A) coarser :=
 { top := per_top A }.
 Proof.
 unfold per_top. simpl.
@@ -84,7 +91,7 @@ Proof.
 exists (fun _ _ => True). intuition.
 Defined.
 
-Instance RelBottomPreLattice {A} : BottomPreLattice (per A) per_coarser :=
+Instance PERHasBottom {A} : HasBottom (per A) coarser :=
 { bottom := per_bottom A }.
 Proof.
 unfold per_bottom.
@@ -108,7 +115,7 @@ Module FAMILY.
 
   Lemma big_union_upper_bound {A B} :
     forall (f: A -> per B),
-    forall a, leq (f a) (big_union f).
+    forall a, coarser (f a) (big_union f).
   Proof.
   intros f a x y H. auto.
   Qed.
@@ -116,8 +123,8 @@ Module FAMILY.
   Lemma big_union_least {A B} :
     forall (f: A -> per B),
     forall (bound: per B),
-      (forall a, leq (f a) bound) ->
-      leq (big_union f) bound.
+      (forall a, coarser (f a) bound) ->
+      coarser (big_union f) bound.
   Proof.
   intros f bound Hbound x y H a. specialize (Hbound a x y H). trivial.
   Qed.
@@ -144,7 +151,7 @@ Module SET.
   * intros R HR x y Runion. apply Runion. trivial.
   * Require Import Classical.
     intros R HR. apply NNPP.
-    unfold leq; unfold per_coarser; simpl. intro H.
+    unfold coarser; simpl. intro H.
     assert (exists x y, proj1_sig R x y /\ exists R, S R /\ ~ proj1_sig R x y)
       as [x [y [Hxy [R' [HR' HR'xy]]]]] by firstorder.
     clear H.
@@ -153,8 +160,8 @@ Module SET.
 
 End SET.
 
-Instance RelCompletePreLattice {A} :
-  CompletePreLattice (per A) per_coarser := { }.
+Instance PERJoinCompletePreLattice {A} :
+  JoinCompletePreLattice (per A) coarser := { }.
 Proof.
 intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.

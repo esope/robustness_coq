@@ -13,36 +13,50 @@ Require Export SetoidClass.
 
 (** * Definitions *)
 
-Class PreLattice(T: Type)(order : T -> T -> Prop) :=
-{ leq := order
-; leq_preorder :> PreOrder leq
-; join : T -> T -> T
+Class JoinPreLattice(T: Type)(leq : T -> T -> Prop) {H: PreOrder leq} :=
+{ join : T -> T -> T
 ; join_ub1 : forall t1 t2, leq t1 (join t1 t2)
 ; join_ub2 : forall t1 t2, leq t2 (join t1 t2)
 ; join_lub : forall t t1 t2, leq t1 t -> leq t2 t -> leq (join t1 t2) t
-; meet : T -> T -> T
+}.
+
+Class MeetPreLattice(T: Type)(leq : T -> T -> Prop) {H: PreOrder leq} :=
+{ meet : T -> T -> T
 ; meet_lb1 : forall t1 t2, leq (meet t1 t2) t1
 ; meet_lb2 : forall t1 t2, leq (meet t1 t2) t2
 ; meet_glb : forall t t1 t2, leq t t1 -> leq t t2 -> leq t (meet t1 t2)
 }.
 
-Class TopPreLattice(T: Type)(order : T -> T -> Prop) :=
-{ topPreLattice_preLattice :> PreLattice T order
-; top : T
+Class PreLattice(T: Type)(leq : T -> T -> Prop) {H: PreOrder leq} :=
+{ preLattice_JoinPreLattice :> JoinPreLattice T leq
+; preLattice_MeetPreLattice :> MeetPreLattice T leq
+}.
+
+Class HasTop(T: Type)(leq : T -> T -> Prop) :=
+{ top : T
 ; top_maximum : forall t, leq t top
 }.
 
-Class BottomPreLattice(T: Type)(order : T -> T -> Prop) :=
-{ bottomPreLattice_preLattice :> PreLattice T order
-; bottom : T
-; bottom_minimum : forall t, leq bottom t
+Class TopJoinPreLattice(T: Type)(leq : T -> T -> Prop) {H: PreOrder leq} :=
+{ topPreLattice_preLattice :> JoinPreLattice T leq
+; topPreLattice_hasTop :> HasTop T leq
+}.
+
+Class HasBottom(T: Type)(order : T -> T -> Prop) :=
+{ bottom : T
+; bottom_minimum : forall t, order bottom t
+}.
+
+Class BottomMeetPreLattice(T: Type)(leq : T -> T -> Prop) {H: PreOrder leq} :=
+{ bottomPreLattice_preLattice :> JoinPreLattice T leq
+; bottomPreLattice_hasBottom :> HasBottom T leq
 }.
 
 Section Lattice_properties.
 
-Context {T order} {L: PreLattice T order}.
+Context {T} {leq: T -> T -> Prop} {P: PreOrder leq}.
 
-Global Instance Lattice_setoid : Setoid T :=
+Global Instance PreOrder_setoid : Setoid T :=
 { equiv := fun x y => leq x y /\ leq y x }.
 Proof.
 constructor.
@@ -58,7 +72,8 @@ constructor; intros; destruct H; destruct H0.
 * transitivity y; trivial. transitivity y0; trivial.
 Qed.
 
-Global Instance join_leq_morphism : Proper (leq ++> leq ++> leq) join.
+Global Instance join_leq_morphism {L: JoinPreLattice T leq}
+: Proper (leq ++> leq ++> leq) join.
 Proof.
 intros x y H x' y' H'.
 apply join_lub.
@@ -66,14 +81,16 @@ apply join_lub.
 - transitivity y'; trivial. apply join_ub2.
 Qed.
 
-Global Instance join_equiv_morphism : Proper (equiv ++> equiv ++> equiv) join.
+Global Instance join_equiv_morphism {L: JoinPreLattice T leq}
+: Proper (equiv ++> equiv ++> equiv) join.
 Proof.
 intros x y [H1 H2] x' y' [H1' H2']. split.
 - rewrite H1. rewrite H1'. reflexivity.
 - rewrite H2. rewrite H2'. reflexivity.
 Qed.
 
-Global Instance meet_leq_morphism : Proper (leq ++> leq ++> leq) meet.
+Global Instance meet_leq_morphism {L: MeetPreLattice T leq}
+: Proper (leq ++> leq ++> leq) meet.
 Proof.
 intros x y H x' y' H'.
 apply meet_glb.
@@ -81,14 +98,15 @@ apply meet_glb.
 - transitivity x'; trivial. apply meet_lb2.
 Qed.
 
-Global Instance meet_equiv_morphism : Proper (equiv ++> equiv ++> equiv) meet.
+Global Instance meet_equiv_morphism {L: MeetPreLattice T leq}
+: Proper (equiv ++> equiv ++> equiv) meet.
 Proof.
 intros x y [H1 H2] x' y' [H1' H2']. split.
 - rewrite H1. rewrite H1'. reflexivity.
 - rewrite H2. rewrite H2'. reflexivity.
 Qed.
 
-Lemma join_characterization : forall t1 t2,
+Lemma join_characterization {L: JoinPreLattice T leq} : forall t1 t2,
   leq t1 t2 <-> equiv (join t1 t2) t2.
 Proof.
 intros t1 t2. split; intro H.
@@ -100,7 +118,7 @@ destruct H as [H1 H2]. transitivity (join t1 t2).
   assumption.
 Qed.
 
-Lemma join_comm : forall t1 t2,
+Lemma join_comm {L: JoinPreLattice T leq} : forall t1 t2,
   equiv (join t1 t2) (join t2 t1).
 Proof.
 intros t1 t2; split;
@@ -110,7 +128,7 @@ solve [
 ].
 Qed.
 
-Lemma join_assoc : forall t1 t2 t3,
+Lemma join_assoc {L: JoinPreLattice T leq} : forall t1 t2 t3,
   equiv (join t1 (join t2 t3)) (join (join t1 t2) t3).
 Proof.
 intros t1 t2 t3. split.
@@ -124,7 +142,7 @@ intros t1 t2 t3. split.
   - transitivity (join t2 t3); auto using join_ub1, join_ub2.
 Qed.
 
-Lemma join_self : forall t,
+Lemma join_self {L: JoinPreLattice T leq} : forall t,
   equiv (join t t) t.
 Proof.
 intros t. split.
@@ -132,7 +150,7 @@ intros t. split.
 * apply join_ub1.
 Qed.
 
-Lemma meet_characterization : forall t1 t2,
+Lemma meet_characterization {L: MeetPreLattice T leq}: forall t1 t2,
   leq t1 t2 <-> equiv (meet t1 t2) t1.
 Proof.
 intros t1 t2. split;
@@ -142,14 +160,14 @@ intros t1 t2. split;
 * transitivity (meet t1 t2); auto using meet_lb2.
 Qed.
 
-Lemma meet_comm : forall t1 t2,
+Lemma meet_comm {L: MeetPreLattice T leq} : forall t1 t2,
   equiv (meet t1 t2) (meet t2 t1).
 Proof.
 intros t1 t2.
 split; solve [ apply meet_glb; [ apply meet_lb2 | apply meet_lb1 ] ].
 Qed.
 
-Lemma meet_assoc : forall t1 t2 t3,
+Lemma meet_assoc {L: MeetPreLattice T leq} : forall t1 t2 t3,
   equiv (meet t1 (meet t2 t3)) (meet (meet t1 t2) t3).
 Proof.
 intros t1 t2 t3. split.
@@ -165,7 +183,7 @@ intros t1 t2 t3. split.
     apply meet_lb2.
 Qed.
 
-Lemma meet_self : forall t,
+Lemma meet_self {L: MeetPreLattice T leq} : forall t,
   equiv (meet t t) t.
 Proof.
 intros t. split.
@@ -175,32 +193,32 @@ Qed.
 
 End Lattice_properties.
 
-Lemma join_bottom {T order} `{BottomPreLattice T order} : forall t,
-  equiv (join t bottom) t.
+Lemma join_bottom {T order} `{JoinPreLattice T order} `{HasBottom T order}:
+  forall t, equiv (join t bottom) t.
 Proof.
 intros t. split.
 * apply join_lub. reflexivity. apply bottom_minimum.
 * apply join_ub1.
 Qed.
 
-Lemma join_top {T order} `{TopPreLattice T order} : forall t,
-  equiv (join t top) top.
+Lemma join_top {T order} `{JoinPreLattice T order} `{HasTop T order}:
+  forall t, equiv (join t top) top.
 Proof.
 intros t. split.
 * apply join_lub. apply top_maximum. reflexivity.
 * apply join_ub2.
 Qed.
 
-Lemma meet_bottom {T order} `{BottomPreLattice T order} : forall t,
-  equiv (meet t bottom) (bottom).
+Lemma meet_bottom {T order} `{MeetPreLattice T order} `{HasBottom T order}:
+  forall t, equiv (meet t bottom) (bottom).
 Proof.
 intros t. split.
 * apply meet_lb2.
 * apply meet_glb; [ apply bottom_minimum | reflexivity ].
 Qed.
 
-Lemma meet_top {T order} `{TopPreLattice T order} : forall t,
-  equiv (meet t top) t.
+Lemma meet_top {T order} `{MeetPreLattice T order} `{HasTop T order}:
+  forall t, equiv (meet t top) t.
 Proof.
 intros t. split.
 * apply meet_lb1.
@@ -212,26 +230,27 @@ Definition monotone {T1 order1 T2 order2}
   forall x y, order1 x y -> order2 (f x) (f y).
 
 Lemma monotone_equiv_compat {T1 order1 T2 order2}
-      `{PreLattice T1 order1} `{PreLattice T2 order2} :
+      `{PreOrder T1 order1} `{PreOrder T2 order2} :
   forall (f: T1 -> T2), monotone f ->
   forall x y, equiv x y -> equiv (f x) (f y).
 Proof.
 intros f Hf x y [Hxy Hyx]. split; auto.
 Qed.
 
-Definition upper_bounded {T1 order1 T2 order2}
-           `{PreLattice T1 order1} `{PreLattice T2 order2} (f : T1 -> T2) :=
+Definition upper_bounded {T1 T2 leq}
+           `{PreOrder T2 leq} (f : T1 -> T2) :=
   exists y, forall x, leq (f x) y.
 
-Definition lower_bounded  {T1 order1 T2 order2}
-           `{PreLattice T1 order1} `{PreLattice T2 order2} (f : T1 -> T2) :=
+Definition lower_bounded  {T1 T2 leq}
+           `{PreLattice T2 leq} (f : T1 -> T2) :=
   exists y, forall x, leq y (f x).
 
-Definition directed {T order} `{PreLattice T order} (P : T -> Prop) :=
+Definition directed {T leq} `{PreOrder T leq} (P : T -> Prop) :=
   (exists z, P z) /\
   forall x y, P x -> P y -> exists z, (P z /\ leq x z /\ leq y z).
 
-Lemma monotone_seq_directed {T1 T2} `{L1: PreLattice T1} `{L2: PreLattice T2} :
+Lemma monotone_seq_directed {T1 T2 leq1 leq2}
+      `{L1: JoinPreLattice T1 leq1} `{L2: PreOrder T2 leq2} :
   forall (x: T1) (f : T1 -> T2),
     monotone f ->
     directed (fun x2 => exists x1, equiv x2 (f x1)).
@@ -246,11 +265,11 @@ intros x f Hf. split.
     + rewrite Hy1. apply Hf. apply join_ub2.
 Qed.
 
-Definition is_upper_bound {T order} `{PreLattice T order}
+Definition is_upper_bound {T leq} `{PreOrder T leq}
            (P : T -> Prop) (y : T) :=
   forall x, P x -> leq x y.
 
-Lemma is_upper_bound_equiv_compat {T order} `{PreLattice T order}:
+Lemma is_upper_bound_equiv_compat {T leq} `{PreOrder T leq}:
   forall (P : T -> Prop) (x y : T),
     is_upper_bound P x -> equiv x y -> is_upper_bound P y.
 Proof.
@@ -258,10 +277,10 @@ intros P x y Hx Hxy z Hz.
 rewrite <- Hxy. auto.
 Qed.
 
-Definition is_sup {T order} `{PreLattice T order} (P : T -> Prop) (sup : T) :=
+Definition is_sup {T leq} `{PreOrder T leq} (P : T -> Prop) (sup : T) :=
   is_upper_bound P sup /\ (forall x, is_upper_bound P x -> leq sup x).
 
-Lemma is_sup_equiv_compat {T order} `{PreLattice T order}:
+Lemma is_sup_equiv_compat {T leq} `{PreOrder T leq}:
   forall (P : T -> Prop) (x y : T),
     is_sup P x -> equiv x y -> is_sup P y.
 Proof.
@@ -270,7 +289,7 @@ eauto using is_upper_bound_equiv_compat.
 intros z HzUB. rewrite <- Hxy. auto.
 Qed.
 
-Lemma is_sup_unique {T order} `{PreLattice T order} :
+Lemma is_sup_unique {T leq} `{PreOrder T leq} :
   forall (P : T -> Prop) sup1 sup2,
     is_sup P sup1 -> is_sup P sup2 ->
     equiv sup1 sup2.
@@ -278,13 +297,12 @@ Proof.
 intros P sup1 sup2 [H1UB H1L] [H2UB H2L]. split; auto.
 Qed.
 
-Definition im {T1 order1 T2 order2}
-           `{PreLattice T1 order1} `{PreLattice T2 order2}
+Definition im {T1 T2 leq} `{PreOrder T2 leq}
            (f : T1 -> T2) (P : T1 -> Prop) :=
   fun x2 => exists x1, P x1 /\ equiv x2 (f x1).
 
-Lemma directed_monotone_im {T1 order1 T2 order2}
-      `{PreLattice T1 order1} `{PreLattice T2 order2}
+Lemma directed_monotone_im {T1 leq1 T2 leq2}
+      `{PreOrder T1 leq1} `{PreOrder T2 leq2}
       (f : T1 -> T2) (P : T1 -> Prop) :
   directed P ->
   monotone f ->
@@ -301,13 +319,13 @@ intros [Hnonempty Hdir] Hf. split.
   + rewrite Hy. apply Hf. trivial.
 Qed.
 
-Definition continuous {T1 order1 T2 order2}
-           `{PreLattice T1 order1} `{PreLattice T2 order2} (f : T1 -> T2) :=
+Definition continuous {T1 leq1 T2 leq2}
+           `{PreOrder T1 leq1} `{PreOrder T2 leq2} (f : T1 -> T2) :=
   forall P sup1, directed P -> is_sup P sup1 ->
   exists sup2, is_sup (im f P) sup2 /\ equiv sup2 (f sup1).
 
-Lemma continuous_monotone {T1 order1 T2 order2}
-      `{PreLattice T1 order1} `{PreLattice T2 order2} :
+Lemma continuous_monotone {T1 leq1 T2 leq2}
+      `{PreOrder T1 leq1} `{PreOrder T2 leq2} :
   forall (f : T1 -> T2), continuous f -> monotone f.
 Proof.
 intros f Hcont x y Hleq.
@@ -334,16 +352,15 @@ apply Hsup2.
 exists x; split; solve [ assumption || reflexivity ].
 Qed.
 
-Class CompletePreLattice(T: Type)(order : T -> T -> Prop) :=
-{ completePreLattice_preLattice :> PreLattice T order
-; complete_def : forall P: T -> Prop, { sup: T | is_sup P sup }
+Class JoinCompletePreLattice(T: Type)(leq : T -> T -> Prop) `{PreOrder T leq} :=
+{ join_complete : forall P: T -> Prop, { sup: T | is_sup P sup }
 }.
 
-Lemma complete_inhabited (T: Type)(order: T -> T -> Prop)
-      {C: CompletePreLattice T order} :
+Lemma join_complete_inhabited (T: Type)(order: T -> T -> Prop)
+      `{PreOrder T order} `{JoinCompletePreLattice T order} :
   inhabited T.
 Proof.
-destruct (complete_def (fun _ : T => False)) as [t _].
+destruct (join_complete (fun _ : T => False)) as [t _].
 exact (inhabits t).
 Qed.
 

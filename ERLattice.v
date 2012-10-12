@@ -7,8 +7,15 @@ Definition er A := { R : relation A | Equivalence R }.
 Definition toER {A} (R: relation A) {E: Equivalence R} : er A :=
   exist Equivalence R E.
 
-Definition er_coarser {A} (R1 R2: er A) :=
+Definition coarser {A} (R1 R2: er A) :=
   forall x y, proj1_sig R2 x y -> proj1_sig R1 x y.
+
+Instance coarser_PreOrder {A} : PreOrder (@coarser A).
+Proof.
+constructor.
++ intros ? ? ? ?. trivial.
++ intros ? ? ? ? ? ? ? ?. auto.
+Qed.
 
 Definition intersection A (R1 R2: er A) : er A.
 Proof.
@@ -47,24 +54,24 @@ constructor.
     + assumption.
 Defined.
 
-Instance RelPreLattice {A} : PreLattice (er A) er_coarser :=
-{ join := intersection A
-; meet := union A
-}.
+Instance ERJoinPreLattice {A} : JoinPreLattice (er A) coarser :=
+{ join := intersection A }.
 Proof.
-* constructor.
-  + intros ? ? ? ?. trivial.
-  + intros ? ? ? ? ? ? ? ?. auto.
 * intros [? [? ? ?]] [? [? ? ?]] ? ? [? ?]. trivial.
 * intros [? [? ? ?]] [? [? ? ?]] ? ? [? ?]. trivial.
 * intros [? [? ? ?]] [? [? ? ?]] [? [? ? ?]] ? ? ? ? ?.
-    unfold er_coarser in *. simpl in *. split; auto.
+    unfold coarser in *. simpl in *. split; auto.
+Defined.
+
+Instance ERMeetPreLattice {A} : MeetPreLattice (er A) coarser :=
+{ meet := union A }.
+Proof.
 * intros [? [? ? ?]] [? [? ? ?]] ? ? ?. apply t_step. left. trivial.
 * intros [? [? ? ?]] [? [? ? ?]] ? ? ?. apply t_step. right. trivial.
 * intros [R1 [Hrefl1 Hsym1 Htrans1]]
          [R2 [Hrefl2 Hsym2 Htrans2]]
          [R3 [Hrefl3 Hsym3 Htrans3]] H12 H23 x y Hplus.
-  unfold er_coarser in *; simpl in *. induction Hplus.
+  unfold coarser in *; simpl in *. induction Hplus.
   - destruct H; auto.
   - eauto.
 Defined.
@@ -76,7 +83,7 @@ Proof.
 exists (er_top_rel A). intuition.
 Defined.
 
-Instance RelTopPreLattice {A} : TopPreLattice (er A) er_coarser :=
+Instance ERHasTop {A} : HasTop (er A) coarser :=
 { top := er_top A }.
 Proof.
 unfold er_top.
@@ -97,7 +104,7 @@ Proof.
 exists (er_bottom_rel A). auto.
 Defined.
 
-Instance RelBottomPreLattice {A} : BottomPreLattice (er A) er_coarser :=
+Instance ERHasBottom {A} : HasBottom (er A) coarser :=
 { bottom := er_bottom A }.
 Proof.
 unfold er_bottom.
@@ -123,7 +130,7 @@ Module FAMILY.
 
   Lemma big_union_upper_bound {A B} :
     forall (f: A -> er B),
-    forall a, leq (f a) (big_union f).
+    forall a, coarser (f a) (big_union f).
   Proof.
   intros f a x y H. auto.
   Qed.
@@ -131,8 +138,8 @@ Module FAMILY.
   Lemma big_union_least {A B} :
     forall (f: A -> er B),
     forall (bound: er B),
-      (forall a, leq (f a) bound) ->
-      leq (big_union f) bound.
+      (forall a, coarser (f a) bound) ->
+      coarser (big_union f) bound.
   Proof.
   intros f bound Hbound x y H a. specialize (Hbound a x y H). trivial.
   Qed.
@@ -172,7 +179,7 @@ Module SET.
   * intros R HR x y Runion. apply Runion. trivial.
   * Require Import Classical.
     intros R HR. apply NNPP.
-    unfold leq; unfold er_coarser; simpl. intro H.
+    unfold coarser; simpl. intro H.
     assert (exists x y, proj1_sig R x y /\ exists R, S R /\ ~ proj1_sig R x y)
       as [x [y [Hxy [R' [HR' HR'xy]]]]] by firstorder.
     clear H.
@@ -181,8 +188,8 @@ Module SET.
 
 End SET.
 
-Instance RelCompletePreLattice {A} :
-  CompletePreLattice (er A) er_coarser := { }.
+Instance ERJoinCompletePreLattice {A} :
+  JoinCompletePreLattice (er A) coarser := { }.
 Proof.
 intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.

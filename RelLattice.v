@@ -2,35 +2,42 @@ Require Import Lattice.
 
 Require Import Relations.
 
-Definition rel_coarser {A} (R1 R2: relation A) :=
+Definition coarser {A} (R1 R2: relation A) :=
   forall x y, R2 x y -> R1 x y.
+
+Instance coarser_PreOrder {A} : PreOrder (@coarser A).
+Proof.
+constructor.
++ intros ? ? ? ?. trivial.
++ intros ? ? ? ? ? ? ? ?. auto.
+Qed.
 
 Definition intersection A (R1 R2: relation A) : relation A :=
   fun x y => R1 x y /\ R2 x y.
 
-Instance RelPreLattice {A} : PreLattice (relation A) rel_coarser :=
-{ join := intersection A
-; meet := union A
-}.
+Instance RelJoinPreLattice {A} : JoinPreLattice (relation A) coarser :=
+{ join := intersection A }.
 Proof.
-* constructor.
-  + intros ? ? ? ?. trivial.
-  + intros ? ? ? ? ? ? ? ?. auto.
 * intros ? ? ? ? [? ?]. trivial.
 * intros ? ? ? ? [? ?]. trivial.
 * intros ? ? ? ? ? ? ? ?. split; auto.
+Defined.
+
+Instance RelMeetPreLattice {A} : MeetPreLattice (relation A) coarser :=
+{ meet := union A }.
+Proof.
 * intros ? ? ? ? ?. left. trivial.
 * intros ? ? ? ? ?. right. trivial.
 * intros ? ? ? ? ? ? ? [? | ?]; auto.
 Defined.
 
-Instance RelTopPreLattice {A} : TopPreLattice (relation A) rel_coarser :=
+Instance RelHasTop {A} : HasTop (relation A) coarser :=
 { top := fun _ _ => False }.
 Proof.
 intros ? ? ? ?. tauto.
 Defined.
 
-Instance RelBottomPreLattice {A} : BottomPreLattice (relation A) rel_coarser :=
+Instance RelHasBottom {A} : HasBottom (relation A) coarser :=
 { bottom := fun _ _ => True }.
 Proof.
 intros ? ? ? ?. trivial.
@@ -43,7 +50,7 @@ Module FAMILY.
 
   Lemma big_union_upper_bound {A B} :
     forall (f: A -> relation B),
-    forall a, leq (f a) (big_union f).
+    forall a, coarser (f a) (big_union f).
   Proof.
   intros f a x y H. auto.
   Qed.
@@ -51,8 +58,8 @@ Module FAMILY.
   Lemma big_union_least {A B} :
     forall (f: A -> relation B),
     forall (bound: relation B),
-      (forall a, leq (f a) bound) ->
-      leq (big_union f) bound.
+      (forall a, coarser (f a) bound) ->
+      coarser (big_union f) bound.
   Proof.
   intros f bound Hbound x y H a. specialize (Hbound a x y H). trivial.
   Qed.
@@ -71,7 +78,7 @@ Module SET.
   * intros R HR x y Runion. apply Runion. trivial.
   * Require Import Classical.
     intros R HR. apply NNPP.
-    unfold leq; unfold rel_coarser; simpl. intro H.
+    unfold coarser; simpl. intro H.
     assert (exists x y, R x y /\ ~big_union S x y)
       as [x [y [Hxy HS]]] by firstorder.
     clear H.
@@ -80,8 +87,8 @@ Module SET.
 
 End SET.
 
-Instance RelCompletePreLattice {A} :
-  CompletePreLattice (relation A) rel_coarser := { }.
+Instance RelJoinCompletePreLattice {A} :
+  JoinCompletePreLattice (relation A) coarser := { }.
 Proof.
 intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.
