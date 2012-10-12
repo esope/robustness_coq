@@ -187,6 +187,22 @@ Proof.
 intros a f n H. simpl in H. trivial.
 Qed.
 
+Lemma ord_leq_S_pred :
+  forall o t,
+    ord_leq (S_Ord (ord_pred o t)) o.
+Proof.
+intros o t.
+induction o; simpl in *.
+* destruct t.
+* destruct t as [t | t].
+  + exists (inl _ t). reflexivity.
+  + destruct (IHo t) as [t' H].
+    exists (inr _ t'). assumption.
+* destruct t as [n Hn].
+  destruct (H n Hn) as [t' H'].
+  exists (existT _ n t'). assumption.
+Qed.
+
 (** * Arithmetic on countable ordinals. *)
 (** ** Addition. *)
 Fixpoint ord_plus (a b: Ord) : Ord :=
