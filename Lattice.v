@@ -207,10 +207,9 @@ intros t. split.
 * apply meet_glb; [ reflexivity | apply top_maximum ].
 Qed.
 
-
 Definition monotone {T1 order1 T2 order2}
-           `{PreLattice T1 order1} `{PreLattice T2 order2} (f : T1 -> T2) :=
-  forall x y, leq x y -> leq (f x) (f y).
+           `{PreOrder _ order1} `{PreOrder _ order2} (f : T1 -> T2) :=
+  forall x y, order1 x y -> order2 (f x) (f y).
 
 Lemma monotone_equiv_compat {T1 order1 T2 order2}
       `{PreLattice T1 order1} `{PreLattice T2 order2} :
