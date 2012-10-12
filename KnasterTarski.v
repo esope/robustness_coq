@@ -25,6 +25,28 @@ assert (leq sup (f sup)) as Hsup.
 * intros t Ht. apply HUB. unfold P. destruct Ht; assumption.
 Qed.
 
+Theorem tarski_least_fixed_point {T leq}
+        `{PreOrder T leq}
+        `{L: MeetCompletePreLattice T leq} :
+  forall (f: T -> T),
+    monotone f ->
+    exists inf,
+      is_fixed_point f inf
+      /\ (forall y, is_fixed_point f y -> leq inf y).
+Proof.
+intros f Hf.
+pose (P := fun t : T => leq (f t) t).
+destruct (meet_complete P) as [inf [HLB HGLB]].
+exists inf.
+assert (leq (f inf) inf) as Hinf.
+{ apply HGLB. intros t Ht. transitivity (f t); trivial.
+  apply Hf. apply HLB; trivial.
+}
+ deep_splits; trivial.
+* apply HLB. unfold P. apply Hf. trivial.
+* intros t Ht. apply HLB. unfold P. destruct Ht; assumption.
+Qed.
+
 (* Transfinite iteration of a function. *)
 Fixpoint trans_iter {T leq}
          `{PreOrder T leq}
