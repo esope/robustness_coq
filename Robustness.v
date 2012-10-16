@@ -556,17 +556,19 @@ split; intro H.
     exists (view R t1). auto using obs_from_self.
 Qed.
 
-Lemma prop_2_1 {A} (S: sys A) (R: relation A) {E: Equivalence R} :
+(** Proposition 2.1. *)
+Lemma coarser_R_obs_eq {A} (S: sys A) (R: relation A) {E: Equivalence R} :
   coarser (toER R) (toER (obs_eq S R)).
 Proof.
 exact (@obs_eq_R A S R E).
 Qed.
 
-Lemma corollary_2_1 {A} (S: sys A) (R: relation A) {E: Equivalence R} :
+(** Corollary 2.1. *)
+Lemma SP_equiv_R_obs_eq {A} (S: sys A) (R: relation A) {E: Equivalence R} :
   SP S R -> equiv (toER R) (toER (obs_eq S R)).
 Proof.
 intros H. split.
-apply prop_2_1. assumption.
+apply coarser_R_obs_eq. assumption.
 Qed.
 
 (** ** About the bottom equivalence relation. *)
@@ -841,7 +843,7 @@ Theorem SP_robust {A} (S: sys A) (RA: relation A) {E: Equivalence RA}:
 Proof.
 intros HSP Attack HAttack.
 unfold Ensembles.In in HAttack. unfold is_attack in HAttack.
-pose proof (corollary_2_1 _ _ HAttack) as Heq.
+pose proof (SP_equiv_R_obs_eq _ _ HAttack) as Heq.
 pose proof (SP_compat_ER_equiv _ _ _ _ _ HSP Heq) as H1.
 pose proof (SP_compat_ER_equiv _ _ _ _ _ HAttack Heq) as H2.
 pose proof (SP_sys_union _ _ H1 H2) as H.
@@ -854,7 +856,7 @@ transitivity (toER (obs_eq (sys_union S Attack) (obs_eq Attack RA))).
   + assumption.
   + transitivity (toER RA).
     - assumption.
-    - apply prop_2_1.
+    - apply coarser_R_obs_eq.
 Qed.
 
 (** * Monotonicity of obs_eq (Prop 4.2). *)
@@ -941,7 +943,7 @@ Definition limit_obs_eq {A} (S: sys A) (R: er A): er A :=
       Lfp.generalized_knaster_tarski
         R
         (obs_eq_ER S)
-        (prop_2_1 S (proj1_sig R))
+        (coarser_R_obs_eq S (proj1_sig R))
         (obs_eq_monotone_ER S)
   in inf.
 
@@ -960,7 +962,7 @@ unfold limit_obs_eq.
 destruct
   (Lfp.generalized_knaster_tarski
      R (obs_eq_ER S)
-     (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
+     (coarser_R_obs_eq S (proj1_sig R)) (obs_eq_monotone_ER S))
   as [fp [Hleq [Hfp Hlfp]]].
 apply Chains.Ascending.fixed_point_above_n_iter; auto using obs_eq_monotone_ER.
 Qed.
@@ -976,7 +978,7 @@ unfold limit_obs_eq.
 destruct
   (Lfp.generalized_knaster_tarski
      R (obs_eq_ER S)
-     (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
+     (coarser_R_obs_eq S (proj1_sig R)) (obs_eq_monotone_ER S))
   as [fp [Hleq [Hfp Hlfp]]].
 apply TransfiniteChains.Ascending.fixed_point_above_trans_iter;
   auto using obs_eq_monotone_ER.
@@ -994,7 +996,7 @@ unfold SP. transitivity (limit_obs_eq S R).
     destruct
       (Lfp.generalized_knaster_tarski
          R
-         (obs_eq_ER S) (prop_2_1 S (proj1_sig R))
+         (obs_eq_ER S) (coarser_R_obs_eq S (proj1_sig R))
          (obs_eq_monotone_ER S))
       as [fp [Hleq [Hfp Hlfp]]].
     destruct Hfp. trivial.
@@ -1017,7 +1019,7 @@ transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (limit_obs_eq S R))))
     destruct
       (Lfp.generalized_knaster_tarski
          R (obs_eq_ER S)
-         (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
+         (coarser_R_obs_eq S (proj1_sig R)) (obs_eq_monotone_ER S))
     as [? [? _]].
     trivial. }
   { compute; auto. }

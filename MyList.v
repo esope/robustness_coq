@@ -1,6 +1,7 @@
 Require Import MyTactics.
 Require Export List.
 
+(** * [repeat]: definition and facts. *)
 Fixpoint repeat {A} (a: A) (n: nat) : list A :=
 match n with
 | O => nil
@@ -31,6 +32,7 @@ generalize dependent k. revert a. induction n; intros a k H; auto.
 simpl. destruct k; auto.
 Qed.
 
+(** * Facts about [last]. *)
 Lemma last_nth {A} :
   forall (l: list A) (default: A),
     last l default = nth (length l - 1) l default.
@@ -66,6 +68,7 @@ intros l default. induction l.
     rewrite IHl. reflexivity.
 Qed.
 
+(** * Facts about [app]. *)
 Lemma app_comm_cons_cons {A}:
   forall a1 a2 (l1 l2: list A),
     (l1 ++ a1 :: nil) ++ a2 :: l2 = l1 ++ a1 :: a2 :: l2.

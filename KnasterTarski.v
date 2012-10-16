@@ -4,6 +4,7 @@ Require Import SetLattice.
 Require Export Ordinals.
 Require Export Fixpoints.
 
+(** * Knaster-Tarski least fixed point. *)
 Module Lfp.
 
 Theorem knaster_tarski {T leq}
@@ -52,6 +53,7 @@ Qed.
 
 End Lfp.
 
+(** * Knaster-Tarski greatest fixed point. *)
 Module Gfp.
 
 Theorem knaster_tarski {T leq}

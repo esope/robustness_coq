@@ -1,11 +1,14 @@
 Require Import RelationClasses.
 
+(** * Iterated splits. *)
+(** Version that does not unfold definitions. *)
 Ltac splits :=
   match goal with
     | |- _ /\ _ => split; splits
     | _ => idtac
   end.
 
+(** Version that does unfold definitions. *)
 Ltac deep_splits :=
   match goal with
     | _ => split; deep_splits
@@ -51,13 +54,13 @@ Qed.
 
 End TestTactics.
 
-(* Useful tactics when dealing with omega. *)
+(** * Useful Hints when dealing with [omega]. *)
 Require Export Omega.
 Hint Extern 3 (_ <= _) => first [omega | simpl; omega].
 Hint Extern 3 (_ = _) => first [omega | simpl; omega].
 Hint Extern 3 => exfalso; first [omega | simpl in *|-; omega].
 
-(* Useful tactic when dealing with equivelence relations. *)
+(** Useful hints when dealing with equivalence relations. *)
 Ltac equivalence_reflexivity :=
   match goal with
     | E: Equivalence ?R |- ?R _ _ => reflexivity

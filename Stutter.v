@@ -2,6 +2,7 @@ Require Import MyTactics.
 Require Import MyList.
 Require Import RelationClasses.
 
+(** * Definition of stuttering. *)
 Inductive stutter_equiv {A} : list A -> list A -> Prop :=
 | stutter_nil: stutter_equiv nil nil
 | stutter_same:
@@ -19,6 +20,9 @@ Inductive stutter_equiv {A} : list A -> list A -> Prop :=
 .
 Hint Constructors stutter_equiv.
 
+(** * Facts about [stutter_equiv]. *)
+
+(** ** Reflexivity. *)
 Lemma stutter_equiv_refl {A} :
   forall (l : list A),
     stutter_equiv l l.
@@ -28,6 +32,7 @@ Qed.
 
 Hint Extern 3 (stutter_equiv _ _) => reflexivity.
 
+(** ** Symmetry. *)
 Lemma stutter_equiv_sym {A} :
   forall (l1 l2 : list A),
     stutter_equiv l1 l2 ->
@@ -36,6 +41,7 @@ Proof.
 intros x y Hxy. induction Hxy; auto.
 Qed.
 
+(** ** Inversion lemmas with [cons] as the beginning. *)
 Lemma stutter_equiv_cons_inv {A} :
   forall a1 a2 (l1 l2 : list A),
     stutter_equiv (a1 :: l1) (a2 :: l2) ->
@@ -75,6 +81,7 @@ apply stutter_equiv_sym in H.
 eapply stutter_equiv_cons_left_inv. eauto.
 Qed.
 
+(** ** Composition lemmas with [cons] at the beginning. *)
 Lemma stutter_equiv_cons_right_add_left {A} :
   forall a (l1 l2: list A),
     stutter_equiv l1 (a :: l2) ->
@@ -95,6 +102,7 @@ destruct (stutter_equiv_cons_left_inv _ _ _ H) as [l2' H'].
 subst. auto.
 Qed.
 
+(** ** Inversion lemmas with [nil]. *)
 Lemma stutter_equiv_nil_left_inv {A} :
   forall (l: list A),
     stutter_equiv nil l ->
@@ -114,6 +122,7 @@ intros l H. apply stutter_equiv_nil_left_inv.
 apply stutter_equiv_sym. assumption.
 Qed.
 
+(** ** Inversion lemmas with [cons] at the end. *)
 Lemma stutter_equiv_cons_end_inv {A} :
   forall a1 a2 (l1 l2 : list A),
     stutter_equiv (l1 ++ a1 :: nil) (l2 ++ a2 :: nil) ->
@@ -190,6 +199,23 @@ apply stutter_equiv_sym in H.
 eapply stutter_equiv_cons_end_left_inv. eauto.
 Qed.
 
+(** ** [stutter_equiv] and [last]. *)
+Lemma stutter_equiv_last_inv {A} :
+  forall (l1 l2: list A) (default: A),
+    l1 <> nil -> l2 <> nil ->
+    stutter_equiv l1 l2 ->
+    last l1 default = last l2 default.
+Proof.
+intros l1 l2 default H1 H2 H.
+pose proof (@app_removelast_last _ l1 default H1) as H1'.
+rewrite H1' in H.
+pose proof (@app_removelast_last _ l2 default H2) as H2'.
+rewrite H2' in H.
+apply stutter_equiv_cons_end_inv in H.
+assumption.
+Qed.
+
+(** ** Composition lemmas with [cons] at the end. *)
 Lemma stutter_equiv_cons_end_right_add_left {A} :
   forall a (l1 l2: list A),
     stutter_equiv l1 (l2 ++ a :: nil) ->
@@ -227,6 +253,7 @@ apply stutter_equiv_cons_end_right_add_left.
 apply stutter_equiv_sym. trivial.
 Qed.
 
+(** ** Transitivity. *)
 Lemma stutter_equiv_trans_strong {A} :
   forall n (l1 l2 l3: list A),
     length l1 + length l2 + length l3 <= n ->
@@ -264,6 +291,7 @@ apply (stutter_equiv_trans_strong (length l1 + length l2 + length l3) l1 l2 l3);
 trivial.
 Qed.
 
+(** ** [stutter_equiv] as an equivalence relation. *)
 Instance stutter_equiv_Equivalence {A} : Equivalence (@stutter_equiv A).
 Proof.
 constructor.
@@ -272,6 +300,7 @@ constructor.
 * exact stutter_equiv_trans.
 Defined.
 
+(** ** [stutter_equiv] and membership. *)
 Lemma stutter_equiv_in {A} :
   forall (l1 l2 : list A),
     stutter_equiv l1 l2 ->
@@ -290,6 +319,7 @@ intros l1 l2 H a Ha. induction H.
 * right. auto.
 Qed.
 
+(** ** Composition lemmas. *)
 Lemma stutter_equiv_app_left {A} :
   forall (l l1 l2: list A),
     stutter_equiv l1 l2 ->
@@ -322,6 +352,7 @@ apply stutter_equiv_app_right; assumption.
 apply stutter_equiv_app_left; assumption.
 Qed.
 
+(** ** [stutter_equiv] stutters. *)
 Lemma stutter_middle {A} :
   forall a (l1 l2: list A),
     stutter_equiv (l1 ++ a :: a :: l2) (l1 ++ a :: l2).
@@ -332,6 +363,7 @@ induction l1; intros a' l2.
 * repeat rewrite <- app_comm_cons. auto.
 Qed.
 
+(** ** [stutter_equiv] and [repeat]. *)
 Lemma stutter_equiv_repeat {A} :
   forall (a: A) n,
     stutter_equiv (a :: nil) (a :: repeat a n).
@@ -339,6 +371,7 @@ Proof.
 intros a n. induction n; simpl; auto.
 Qed.
 
+(** ** [stutter_equiv] with lists of one or two elements. *)
 Lemma stutter_one_inv {A} :
   forall a (l: list A),
     stutter_equiv l (a :: nil) ->
@@ -374,6 +407,7 @@ intros a1 a2 l Ha Hl. induction l.
     - congruence.
 Qed.
 
+(** ** Inversion lemmas with [cons] in the middle. *)
 Lemma stutter_equiv_app_left_inv {A} :
   forall a (l1 l2 l3: list A),
     stutter_equiv (l1 ++ a :: l2) l3 ->
@@ -447,19 +481,4 @@ intros a l1 l2 l3 H.
 symmetry in H.
 destruct (stutter_equiv_app_left_inv _ _ _ _ H) as [l2' [l3' [? [? ?]]]].
 exists l2'. exists l3'. symmetry in H1. symmetry in H2. auto.
-Qed.
-
-Lemma stutter_equiv_last_inv {A} :
-  forall (l1 l2: list A) (default: A),
-    l1 <> nil -> l2 <> nil ->
-    stutter_equiv l1 l2 ->
-    last l1 default = last l2 default.
-Proof.
-intros l1 l2 default H1 H2 H.
-pose proof (@app_removelast_last _ l1 default H1) as H1'.
-rewrite H1' in H.
-pose proof (@app_removelast_last _ l2 default H2) as H2'.
-rewrite H2' in H.
-apply stutter_equiv_cons_end_inv in H.
-assumption.
 Qed.
