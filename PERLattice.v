@@ -1,5 +1,5 @@
 Require Import Relations.
-Require Import Lattice.
+Require Import PreLattice.
 Require Import Chains.
 
 Definition per A := { R : relation A | PER R }.

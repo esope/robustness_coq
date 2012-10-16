@@ -1,5 +1,5 @@
 Require Import MyTactics.
-Require Import Lattice.
+Require Import PreLattice.
 Require Import Chains.
 
 (** * Kleene least fixed point theorems. *)

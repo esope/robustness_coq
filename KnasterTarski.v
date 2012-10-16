@@ -1,5 +1,5 @@
 Require Import MyTactics.
-Require Import Lattice.
+Require Import PreLattice.
 Require Import SetLattice.
 Require Export Ordinals.
 Require Export Fixpoints.

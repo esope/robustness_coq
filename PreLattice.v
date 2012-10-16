@@ -52,7 +52,7 @@ Class BottomMeetPreLattice(T: Type)(leq : T -> T -> Prop) {H: PreOrder leq} :=
 ; bottomPreLattice_hasBottom :> HasBottom T leq
 }.
 
-(** * Properties of lattices. *)
+(** * Properties of pre-lattices. *)
 Section Lattice_properties.
 
 Context {T} {leq: T -> T -> Prop} {P: PreOrder leq}.
@@ -461,7 +461,7 @@ Qed.
 
 End inf.
 
-(** * About and [anti_monotone]. *)
+(** * About [flip]. *)
 Section Flip.
 
 Definition flip {A B} (f: A -> A -> B) x y := f y x.
@@ -618,6 +618,7 @@ Qed.
 
 End Flip.
 
+(** * Completeness. *)
 Class JoinCompletePreLattice(T: Type)(leq : T -> T -> Prop) `{PreOrder T leq} :=
 { join_complete : forall P: T -> Prop, { sup: T | is_sup P sup }
 }.

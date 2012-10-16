@@ -1,6 +1,6 @@
 Require Import MyTactics.
 Require Import SetoidClass.
-Require Import Lattice.
+Require Import PreLattice.
 
 (** Some basic results about fixed points. *)
 

@@ -1,5 +1,5 @@
 Require Import Relations.
-Require Export Lattice.
+Require Export PreLattice.
 Require Import Chains.
 
 Definition er A := { R : relation A | Equivalence R }.

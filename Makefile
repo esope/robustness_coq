@@ -1,6 +1,6 @@
 MODULES := MyTactics MyList \
 	   EquivClass SetPredicates \
-	   Lattice Fixpoints \
+	   PreLattice Fixpoints \
 	   Chains Kleene \
 	   Ordinals TransfiniteChains \
 	   KnasterTarski \
@@ -33,7 +33,7 @@ clean: Makefile.coq
 	@echo "Cleaning..."
 	@echo "*******************************************************"
 	$(MAKE) -f Makefile.coq clean
-	rm -f Makefile.coq .depend
+	rm -f Makefile.coq .depend *~ *.glob *.v.d ^.vo
 
 doc:
 	@echo "*******************************************************"

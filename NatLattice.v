@@ -1,5 +1,5 @@
 Require Import MyTactics.
-Require Import Lattice.
+Require Import PreLattice.
 Require Import Arith.
 Require Import Omega.
 Require Import Classical.

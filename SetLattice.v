@@ -1,5 +1,4 @@
-Require Import Lattice.
-
+Require Import PreLattice.
 Require Import Ensembles.
 Require Import Constructive_sets.
 

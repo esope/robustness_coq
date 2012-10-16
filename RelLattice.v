@@ -1,5 +1,4 @@
-Require Import Lattice.
-
+Require Import PreLattice.
 Require Import Relations.
 
 Definition coarser {A} (R1 R2: relation A) :=

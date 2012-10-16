@@ -1,5 +1,5 @@
 Require Import MyTactics.
-Require Export Lattice.
+Require Export PreLattice.
 Require Export Ordinals.
 
 (** * Ascending transfinite chains. *)

@@ -1,5 +1,5 @@
 Require Import MyTactics.
-Require Export Lattice.
+Require Export PreLattice.
 Require Export NatLattice.
 
 (** * Iteration of a function over natural numbers. *)
