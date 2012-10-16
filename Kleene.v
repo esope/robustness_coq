@@ -5,9 +5,7 @@ Require Import Chains.
 (** * Kleene least fixed point theorems. *)
 Module Lfp.
 (** Kleene least fixed point theorem, generalized to an arbitraty starting point. *)
-Theorem generalized_kleene {T leq}
-        `{PreOrder T leq}
-        `{L: JoinCompletePreLattice T leq} :
+Theorem generalized_kleene {T leq} `{JoinCompletePreLattice T leq} :
   forall zero (f: T -> T),
     leq zero (f zero) ->
     sup_continuous f ->
@@ -37,9 +35,7 @@ exists sup. split; trivial. split.
 Qed.
 
 (** Kleene least fixed point theorem. *)
-Theorem kleene {T leq}
-        `{PreOrder T leq}
-        `{L: JoinCompletePreLattice T leq} `{B: HasBottom T leq}:
+Theorem kleene {T leq} `{JoinCompletePreLattice T leq} `{HasBottom T leq}:
   forall (f: T -> T),
     sup_continuous f ->
     { sup |
@@ -58,6 +54,55 @@ Qed.
 
 End Lfp.
 
+(** * Kleene greatest fixed point theorems. *)
 Module Gfp.
-(** TODO *)
+
+(** Kleene greatest fixed point theorem, generalized to an arbitraty starting point. *)
+Theorem generalized_kleene {T leq} `{MeetCompletePreLattice T leq} :
+  forall zero (f: T -> T),
+    leq (f zero) zero ->
+    inf_continuous f ->
+    { inf |
+      is_inf (iteration_chain zero f) inf
+      /\ is_fixed_point f inf
+      /\ (forall y, leq y zero -> is_fixed_point f y -> leq y inf) }.
+Proof.
+intros zero f Hzero Hf_inf_continuous.
+assert (monotone f) as Hf_monotone by (apply inf_continuous_monotone; trivial).
+pose (chain := iteration_chain zero f).
+pose (HchainInf_Directed :=
+        Descending.iteration_chain_inf_directed zero f Hzero Hf_monotone).
+destruct (meet_complete chain) as [inf Hinf].
+destruct (Hf_inf_continuous chain inf HchainInf_Directed Hinf)
+  as [inf2 [Hinf2IsInf Hinf2Eq]].
+exists inf. split; trivial. split.
+* split.
+  - destruct Hinf as [HinfLB HinfG]. apply HinfG.
+    apply Descending.iteration_chain_lower_bound_f; auto.
+    apply HinfLB. exists 0. reflexivity.
+  - destruct Hinf2IsInf as [? Hinf2G].
+    rewrite <- Hinf2Eq. apply Hinf2G. destruct Hinf as [HinfLB _].
+    apply Descending.iteration_chain_lower_bound_im_f; auto.
+* intros y Hzeroy Hy. destruct Hinf as [HinfLB HinfG]. apply HinfG; trivial.
+  apply Descending.fixed_point_is_lower_bound_chain; trivial.
+Qed.
+
+(** Kleene greatest fixed point theorem. *)
+Theorem kleene {T leq} `{MeetCompletePreLattice T leq} `{HasTop T leq}:
+  forall (f: T -> T),
+    inf_continuous f ->
+    { inf |
+      is_inf (iteration_chain top f) inf
+      /\ is_fixed_point f inf
+      /\ (forall y, is_fixed_point f y -> leq y inf) }.
+Proof.
+intros f Hf.
+pose proof
+     (generalized_kleene top f (top_maximum (f top)) Hf)
+  as HKleene.
+destruct HKleene as [inf [Hinf [Hfp Hlfp]]].
+exists inf. splits; auto.
+* intros y Hy. apply Hlfp; trivial. apply top_maximum.
+Qed.
+
 End Gfp.
