@@ -15,7 +15,7 @@ Script compatible with [Coq 8.4](http://coq.inria.fr).
 # To build the files and generate the documentation:
 
 Just type `make` and wait.
-The documentation is placed in the `html/` subdirectory.
+The documentation is placed in the `html/` sub-directory.
 
 The command `make check` runs `coqchk` on the development.
 
@@ -30,7 +30,7 @@ The command `make wc` gives statistics about the development.
 * `Fixpoints.v`: Facts about fixed points and relative fixed points.
 * `Kleene.v`: Kleene fixed point theorems.
 * `KnasterTarski.v`: Knaster-Tarski fixed point theorems.
-* `Lattice.v`: Definitions about lattices.
+* `PreLattice.v`: Definitions about pre-lattices.
 * `LICENSE`: License file (MIT).
 * `Makefile`: Makefile used to build the development.
 * `MyList.v`: Extra facts about lists.
