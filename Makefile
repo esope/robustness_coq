@@ -46,3 +46,6 @@ check:	coq
 	@echo "Checking the Coq development. This might take time..."
 	@echo "*******************************************************"
 	coqchk -silent -o -m $(MODULES)
+
+wc:
+	coqwc -p $(VS)
