@@ -235,7 +235,7 @@ Qed.
 
 Definition im {T1 T2 leq} `{PreOrder T2 leq}
            (f : T1 -> T2) (P : T1 -> Prop) :=
-  fun x2 => exists x1, P x1 /\ equiv x2 (f x1).
+  fun x2 => exists x1, P x1 /\ x2 = f x1.
 
 (** * Supremas: least upper bounds. *)
 Section sup.
@@ -305,11 +305,11 @@ Lemma sup_directed_monotone_im {T1 leq1 T2 leq2}
 Proof.
 intros [Hnonempty Hdir] Hf. split.
 * destruct Hnonempty as [z Hz].
-  exists (f z). exists z. split; auto. reflexivity.
+  exists (f z). exists z. split; auto.
 * intros x y [x0 [Hx0 Hx]] [y0 [Hy0 Hy]].
   destruct (Hdir x0 y0 Hx0 Hy0) as [z0 [Hz0 [Hx0z0 Hy0z0]]].
   exists (f z0). splits.
-  + exists z0. split; auto. reflexivity.
+  + exists z0. split; auto.
   + rewrite Hx. apply Hf. trivial.
   + rewrite Hy. apply Hf. trivial.
 Qed.
@@ -417,11 +417,11 @@ Lemma inf_directed_monotone_im {T1 leq1 T2 leq2}
 Proof.
 intros [Hnonempty Hdir] Hf. split.
 * destruct Hnonempty as [z Hz].
-  exists (f z). exists z. split; auto. reflexivity.
+  exists (f z). exists z. split; auto.
 * intros x y [x0 [Hx0 Hx]] [y0 [Hy0 Hy]].
   destruct (Hdir x0 y0 Hx0 Hy0) as [z0 [Hz0 [Hx0z0 Hy0z0]]].
   exists (f z0). splits.
-  + exists z0. split; auto. reflexivity.
+  + exists z0. split; auto.
   + rewrite Hx. apply Hf. trivial.
   + rewrite Hy. apply Hf. trivial.
 Qed.
@@ -460,6 +460,163 @@ exists y; split; solve [ assumption || reflexivity ].
 Qed.
 
 End inf.
+
+(** * About and [anti_monotone]. *)
+Section Flip.
+
+Definition flip {A B} (f: A -> A -> B) x y := f y x.
+
+Lemma flip_PreOrder {A} {leq: A -> A -> Prop} :
+  PreOrder leq -> PreOrder (flip leq).
+Proof.
+intro H. constructor.
+* intro x. unfold flip. reflexivity.
+* intros x y z Hxy Hyz. unfold flip in *. transitivity y; trivial.
+Qed.
+
+Lemma equiv_flip_iff {A} {leqA: A -> A -> Prop} (PA: PreOrder leqA) :
+  forall x y,
+    @equiv _ (@PreOrder_setoid _ _ PA) x y
+    <-> @equiv _ (@PreOrder_setoid _ _ (flip_PreOrder PA)) x y.
+Proof.
+intros x y; split; intros [Hxy Hyx]; split; assumption.
+Qed.
+
+Definition anti_monotone {A B leqA leqB} `{PreOrder A leqA} `{PreOrder B leqB}
+           (f: A -> B) :=
+  forall x y, flip leqA x y -> leqB (f x) (f y).
+
+Lemma monotone_flip_iff {A B} {leqA: A -> A -> Prop} {leqB: B -> B -> Prop}
+      (PA: PreOrder leqA) (PB: PreOrder leqB) (f: A -> B):
+  @monotone _ _ _ _ PA PB f <->
+  @anti_monotone _ _ _ _ (flip_PreOrder PA) PB f.
+Proof.
+split; intros Hf x y Hxy; apply Hf; assumption.
+Qed.
+
+Lemma anti_monotone_flip_iff {A B} {leqA: A -> A -> Prop} {leqB: B -> B -> Prop}
+      (PA: PreOrder leqA) (PB: PreOrder leqB) (f: A -> B):
+  @anti_monotone _ _ _ _ PA PB f <->
+  @monotone _ _ _ _ (flip_PreOrder PA) PB f.
+Proof.
+split; intros Hf x y Hxy; apply Hf; assumption.
+Qed.
+
+Lemma sup_directed_flip_iff {A} {leq: A -> A -> Prop} (PA: PreOrder leq):
+  forall P: A -> Prop,
+    @sup_directed _ _ PA P <-> @inf_directed _ _ (flip_PreOrder PA) P.
+Proof.
+intro P; split; intros [Hinhabited HP]; split; trivial.
+Qed.
+
+Lemma inf_directed_flip_iff {A} {leq: A -> A -> Prop} (PA: PreOrder leq):
+  forall P: A -> Prop,
+    @inf_directed _ _ PA P <-> @sup_directed _ _ (flip_PreOrder PA) P.
+Proof.
+intro P; split; intros [Hinhabited HP]; split; trivial.
+Qed.
+
+Lemma is_upper_bound_flip_iff {A} {leq: A -> A -> Prop} (PA: PreOrder leq):
+  forall (P: A -> Prop) x,
+    @is_upper_bound _ _ PA P x <-> @is_lower_bound _ _ (flip_PreOrder PA) P x.
+Proof.
+intros P x; split; intros H y Hy; apply H; trivial.
+Qed.
+
+Lemma is_lower_bound_flip_iff {A} {leq: A -> A -> Prop} (PA: PreOrder leq):
+  forall (P: A -> Prop) x,
+    @is_lower_bound _ _ PA P x <-> @is_upper_bound _ _ (flip_PreOrder PA) P x.
+Proof.
+intros P x; split; intros H y Hy; apply H; trivial.
+Qed.
+
+Lemma is_sup_flip_iff {A} {leq: A -> A -> Prop} (PA: PreOrder leq):
+  forall (P: A -> Prop) x,
+    @is_sup _ _ PA P x <-> @is_inf _ _ (flip_PreOrder PA) P x.
+Proof.
+intros P x; split; intros [HUB HLUB]; split.
+* rewrite <- is_upper_bound_flip_iff. assumption.
+* intros z Hz. apply HLUB. rewrite is_upper_bound_flip_iff. assumption.
+* rewrite is_upper_bound_flip_iff. assumption.
+* intros z Hz. apply HLUB. rewrite <- is_upper_bound_flip_iff. assumption.
+Qed.
+
+Lemma is_inf_flip_iff {A} {leq: A -> A -> Prop} (PA: PreOrder leq):
+  forall (P: A -> Prop) x,
+    @is_inf _ _ PA P x <-> @is_sup _ _ (flip_PreOrder PA) P x.
+Proof.
+intros P x; split; intros [HUB HLUB]; split.
+* rewrite <- is_lower_bound_flip_iff. assumption.
+* intros z Hz. apply HLUB. rewrite is_lower_bound_flip_iff. assumption.
+* rewrite is_lower_bound_flip_iff. assumption.
+* intros z Hz. apply HLUB. rewrite <- is_lower_bound_flip_iff. assumption.
+Qed.
+
+Lemma sup_continuous_flip {T1 T2}
+      {leq1: T1 -> T1 -> Prop} {leq2: T2 -> T2 -> Prop}
+      (P1: PreOrder leq1) (P2: PreOrder leq2) (f : T1 -> T2) :
+  @sup_continuous _ _ _ _ P1 P2 f ->
+  @inf_continuous _ _ _ _ (flip_PreOrder P1) (flip_PreOrder P2) f.
+Proof.
+intros H P inf Hdir Hinf.
+rewrite <- sup_directed_flip_iff in Hdir.
+rewrite <- is_sup_flip_iff in Hinf.
+specialize (H P inf Hdir Hinf).
+destruct H as [sup2 [Hsup2 Heq]].
+exists sup2. split.
+rewrite <- is_sup_flip_iff. assumption.
+rewrite <- equiv_flip_iff. assumption.
+Qed.
+
+Lemma sup_continuous_flip_inv {T1 T2}
+      {leq1: T1 -> T1 -> Prop} {leq2: T2 -> T2 -> Prop}
+      (P1: PreOrder leq1) (P2: PreOrder leq2) (f : T1 -> T2) :
+  @inf_continuous _ _ _ _ (flip_PreOrder P1) (flip_PreOrder P2) f ->
+  @sup_continuous _ _ _ _ P1 P2 f.
+Proof.
+intros H P inf Hdir Hinf.
+rewrite sup_directed_flip_iff in Hdir.
+rewrite is_sup_flip_iff in Hinf.
+specialize (H P inf Hdir Hinf).
+destruct H as [sup2 [Hsup2 Heq]].
+exists sup2. split.
+rewrite is_sup_flip_iff. assumption.
+rewrite equiv_flip_iff. assumption.
+Qed.
+
+Lemma inf_continuous_flip {T1 T2}
+      {leq1: T1 -> T1 -> Prop} {leq2: T2 -> T2 -> Prop}
+      (P1: PreOrder leq1) (P2: PreOrder leq2) (f : T1 -> T2) :
+  @inf_continuous _ _ _ _ P1 P2 f ->
+  @sup_continuous _ _ _ _ (flip_PreOrder P1) (flip_PreOrder P2) f.
+Proof.
+intros H P inf Hdir Hinf.
+rewrite <- inf_directed_flip_iff in Hdir.
+rewrite <- is_inf_flip_iff in Hinf.
+specialize (H P inf Hdir Hinf).
+destruct H as [sup2 [Hsup2 Heq]].
+exists sup2. split.
+rewrite <- is_inf_flip_iff. assumption.
+rewrite <- equiv_flip_iff. assumption.
+Qed.
+
+Lemma inf_continuous_flip_inv {T1 T2}
+      {leq1: T1 -> T1 -> Prop} {leq2: T2 -> T2 -> Prop}
+      (P1: PreOrder leq1) (P2: PreOrder leq2) (f : T1 -> T2) :
+  @sup_continuous _ _ _ _ (flip_PreOrder P1) (flip_PreOrder P2) f ->
+  @inf_continuous _ _ _ _ P1 P2 f.
+Proof.
+intros H P inf Hdir Hinf.
+rewrite inf_directed_flip_iff in Hdir.
+rewrite is_inf_flip_iff in Hinf.
+specialize (H P inf Hdir Hinf).
+destruct H as [sup2 [Hsup2 Heq]].
+exists sup2. split.
+rewrite is_inf_flip_iff. assumption.
+rewrite equiv_flip_iff. assumption.
+Qed.
+
+End Flip.
 
 Class JoinCompletePreLattice(T: Type)(leq : T -> T -> Prop) `{PreOrder T leq} :=
 { join_complete : forall P: T -> Prop, { sup: T | is_sup P sup }

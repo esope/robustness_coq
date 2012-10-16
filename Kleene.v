@@ -12,13 +12,13 @@ Theorem generalized_kleene {T leq}
     leq zero (f zero) ->
     sup_continuous f ->
     { sup |
-      is_sup (Ascending.iteration_chain zero f) sup
+      is_sup (iteration_chain zero f) sup
       /\ is_fixed_point f sup
       /\ (forall y, leq zero y -> is_fixed_point f y -> leq sup y) }.
 Proof.
 intros zero f Hzero Hf_sup_continuous.
 assert (monotone f) as Hf_monotone by (apply sup_continuous_monotone; trivial).
-pose (chain := Ascending.iteration_chain zero f).
+pose (chain := iteration_chain zero f).
 pose (HchainSup_Directed :=
         Ascending.iteration_chain_sup_directed zero f Hzero Hf_monotone).
 destruct (join_complete chain) as [sup Hsup].
@@ -43,7 +43,7 @@ Theorem kleene {T leq}
   forall (f: T -> T),
     sup_continuous f ->
     { sup |
-      is_sup (Ascending.iteration_chain bottom f) sup
+      is_sup (iteration_chain bottom f) sup
       /\ is_fixed_point f sup
       /\ (forall y, is_fixed_point f y -> leq sup y) }.
 Proof.
