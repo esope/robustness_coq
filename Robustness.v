@@ -34,6 +34,8 @@ Require Import EquivClass.
 Require Import SetPredicates.
 Require Import Classical.
 Require Import KnasterTarski.
+Require Import Chains.
+Require Import TransfiniteChains.
 
 (** * Systems. *)
 Record sys (state: Type) :=
@@ -855,7 +857,6 @@ transitivity (toER (obs_eq (sys_union S Attack) (obs_eq Attack RA))).
     - apply prop_2_1.
 Qed.
 
-
 (** * Monotonicity of obs_eq (Prop 4.2). *)
 Lemma stutter_equiv_map_class_included {A}
       (R1 : relation A) {E1 : Equivalence R1}
@@ -929,12 +930,20 @@ apply obs_eq_monotone. assumption.
 Qed.
 
 (** * Iterated observations. *)
-Definition iter_obs_eq {A} (o: Ord) (S: sys A) (R: er A) : er A :=
-  trans_iter (obs_eq_ER S) o R.
-
-Definition limit_obs_eq {A} (S: sys A) (R: er A):
-  er A :=
-  FAMILY.big_union (fun o => iter_obs_eq o S R).
+(** There was a small mistake in the original paper. The authors
+    considered the limit of the chain of finite iterations of [obs_eq S]
+    that starts from the observation [R]. That limit is not necessarily a
+    fixed point, as [obs_eq R] is not necessarily continuous. As a fix, we
+    take as a definition for the limit the least fixed point of [obs_eq S]
+    that is above [R]. *)
+Definition limit_obs_eq {A} (S: sys A) (R: er A): er A :=
+  let (inf, _) :=
+      generalized_tarski_least_fixed_point
+        R
+        (obs_eq_ER S)
+        (prop_2_1 S (proj1_sig R))
+        (obs_eq_monotone_ER S)
+  in inf.
 
 Instance limit_obs_eq_Equivalence {A} (S: sys A) (R: er A):
   Equivalence (proj1_sig (limit_obs_eq S R)).
@@ -942,6 +951,32 @@ Proof.
 apply (proj2_sig (limit_obs_eq S R)).
 Qed.
 Hint Resolve limit_obs_eq_Equivalence.
+
+(** The limit is above any finite iteration of [obs_eq S]. *)
+Lemma limit_upper_bound_chain {A} (S: sys A) (R: er A):
+  forall n, coarser (n_iter (obs_eq_ER S) n R) (limit_obs_eq S R).
+Proof.
+unfold limit_obs_eq.
+destruct
+  (generalized_tarski_least_fixed_point
+     R (obs_eq_ER S)
+     (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
+  as [fp [Hleq [Hfp Hlfp]]].
+apply fixed_point_above_n_iter; auto using obs_eq_monotone_ER.
+Qed.
+
+(** The limit is above any (countably) transfinite iteration of [obs_eq S]. *)
+Lemma limit_upper_bound_trans_chain {A} (S: sys A) (R: er A):
+  forall o, coarser (trans_iter (obs_eq_ER S) o R) (limit_obs_eq S R).
+Proof.
+unfold limit_obs_eq.
+destruct
+  (generalized_tarski_least_fixed_point
+     R (obs_eq_ER S)
+     (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
+  as [fp [Hleq [Hfp Hlfp]]].
+apply fixed_point_above_trans_iter; auto using obs_eq_monotone_ER.
+Qed.
 
 (** Proposition 4.1. *)
 (** That is related to the continuity of obs_eq. *)
@@ -951,27 +986,14 @@ Proof.
 unfold SP. transitivity (limit_obs_eq S R).
 * transitivity (obs_eq_ER S (limit_obs_eq S R)).
   + intros s s' Hss'. simpl in *. assumption.
-  + pose proof
-         (generalized_knaster_tarski_lfp
-            R (obs_eq_ER S)
-            (prop_2_1 S (proj1_sig R))
-            (obs_eq_monotone_ER S)) as H.
-    destruct H as [sup [Hsup [[Hfp _] _]]].
-    assert (equiv (limit_obs_eq S R) sup) as [Hsup1 Hsup2].
-    { apply (is_sup_unique (trans_iteration_chain R (obs_eq_ER S))); trivial.
-      split.
-      * intros R' [o Heq]. rewrite Heq. unfold limit_obs_eq.
-        unfold iter_obs_eq.
-        apply
-          (FAMILY.big_union_upper_bound
-             (fun o0 : Ord => trans_iter (obs_eq_ER S) o0 R)).
-      * intros R' HR'.
-        apply (FAMILY.big_union_least).
-        intro o. apply HR'. exists o. reflexivity.
-    }
-    transitivity (obs_eq_ER S sup).
-    apply obs_eq_monotone_ER; trivial.
-    transitivity sup; trivial.
+  + unfold limit_obs_eq.
+    destruct
+      (generalized_tarski_least_fixed_point
+         R
+         (obs_eq_ER S) (prop_2_1 S (proj1_sig R))
+         (obs_eq_monotone_ER S))
+      as [fp [Hleq [Hfp Hlfp]]].
+    destruct Hfp. trivial.
 * intros s s' Hss'. simpl in *. assumption.
 Qed.
 
@@ -985,24 +1007,17 @@ Proof.
 intros Attack Hattack HSP.
 transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (limit_obs_eq S R)))).
 + apply obs_eq_monotone.
-  apply (FAMILY.big_union_upper_bound (fun n => iter_obs_eq n S R) O_Ord).
+  transitivity R. { compute. auto. }
+  transitivity (limit_obs_eq S R).
+  { unfold limit_obs_eq.
+    destruct
+      (generalized_tarski_least_fixed_point
+         R (obs_eq_ER S)
+         (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
+    as [? [? _]].
+    trivial. }
+  { compute; auto. }
 + transitivity (toER (proj1_sig (limit_obs_eq S R))).
   apply SP_sys_union; auto. apply SP_limit.
-  unfold coarser. simpl. trivial.
-Qed.
-
-Lemma attack_leak_upper_bound_fixed {A} {S: sys A}
-      {R: relation A} {ER: Equivalence R}
-      {Q: relation A} {EQ: Equivalence Q}:
-  coarser (toER R) (toER Q) ->
-  SP S Q ->
-  forall (Attack : sys A),
-    is_attack R Attack ->
-    SP Attack Q ->
-    coarser (obs_eq_ER (sys_union S Attack) (toER R)) (toER Q).
-Proof.
-intros HRQ HSPS Attack Hattack HSPAttack.
-transitivity (toER (obs_eq (sys_union S Attack) Q)).
-+ apply obs_eq_monotone. assumption.
-+ apply SP_sys_union; auto.
+  compute; auto.
 Qed.

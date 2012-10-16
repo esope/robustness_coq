@@ -108,15 +108,11 @@ intros x y [H1 H2] x' y' [H1' H2']. split.
 Qed.
 
 Lemma join_characterization {L: JoinPreLattice T leq} : forall t1 t2,
-  leq t1 t2 <-> equiv (join t1 t2) t2.
+  leq t1 t2 <-> leq (join t1 t2) t2.
 Proof.
 intros t1 t2. split; intro H.
-split.
-  apply join_lub. assumption. reflexivity.
-  apply join_ub2.
-destruct H as [H1 H2]. transitivity (join t1 t2).
-  apply join_ub1.
-  assumption.
+* apply join_lub. assumption. reflexivity.
+* transitivity (join t1 t2); auto using join_ub1.
 Qed.
 
 Lemma join_comm {L: JoinPreLattice T leq} : forall t1 t2,
@@ -152,12 +148,10 @@ intros t. split.
 Qed.
 
 Lemma meet_characterization {L: MeetPreLattice T leq}: forall t1 t2,
-  leq t1 t2 <-> equiv (meet t1 t2) t1.
+  leq t1 t2 <-> leq t1 (meet t1 t2).
 Proof.
-intros t1 t2. split;
- [intros Hleq | intros [Hleq12 Hleq21]].
-* split; auto using meet_lb1.
-  apply meet_glb. reflexivity. assumption.
+intros t1 t2. split; intro Hleq.
+* apply meet_glb. reflexivity. assumption.
 * transitivity (meet t1 t2); auto using meet_lb2.
 Qed.
 
@@ -227,9 +221,6 @@ intros t. split.
 Qed.
 
 (** * More definitions. *)
-Definition is_fixed_point {T} `{L : Setoid T} (f : T -> T) (x : T) :=
-  equiv (f x) x.
-
 Definition monotone {T1 order1 T2 order2}
            `{PreOrder _ order1} `{PreOrder _ order2} (f : T1 -> T2) :=
   forall x y, order1 x y -> order2 (f x) (f y).
@@ -326,7 +317,7 @@ Qed.
 Definition sup_continuous {T1 leq1 T2 leq2}
            `{PreOrder T1 leq1} `{PreOrder T2 leq2} (f : T1 -> T2) :=
   forall P sup1, sup_directed P -> is_sup P sup1 ->
-  exists sup2, is_sup (im f P) sup2 /\ equiv sup2 (f sup1).
+  { sup2 | is_sup (im f P) sup2 /\ equiv sup2 (f sup1) }.
 
 Lemma sup_continuous_monotone {T1 leq1 T2 leq2}
       `{PreOrder T1 leq1} `{PreOrder T2 leq2} :
@@ -438,7 +429,7 @@ Qed.
 Definition inf_continuous {T1 leq1 T2 leq2}
            `{PreOrder T1 leq1} `{PreOrder T2 leq2} (f : T1 -> T2) :=
   forall P inf1, inf_directed P -> is_inf P inf1 ->
-  exists inf2, is_inf (im f P) inf2 /\ equiv inf2 (f inf1).
+  { inf2 | is_inf (im f P) inf2 /\ equiv inf2 (f inf1) }.
 
 Lemma inf_continuous_monotone {T1 leq1 T2 leq2}
       `{PreOrder T1 leq1} `{PreOrder T2 leq2} :
@@ -498,3 +489,6 @@ Class CompletePreLattice(T: Type)(leq : T -> T -> Prop) `{PreOrder T leq} :=
 { complete_join :> JoinCompletePreLattice T leq
 ; complete_meet :> MeetCompletePreLattice T leq
 }.
+
+Definition is_fixed_point {T} `{L : Setoid T} (f : T -> T) (x : T) :=
+  equiv (f x) x.

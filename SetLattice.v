@@ -58,6 +58,26 @@ Module FAMILY.
   intros f bound Hbound x [y Hy]. specialize (Hbound y x Hy). trivial.
   Qed.
 
+  Definition big_intersection {A B} (f: A -> Ensemble B) : Ensemble B :=
+    fun b => forall a, f a b.
+
+  Lemma big_intersection_lower_bound {A B} :
+    forall (f: A -> Ensemble B),
+    forall a, Included _ (big_intersection f) (f a).
+  Proof.
+  intros f a b H. apply H.
+  Qed.
+
+  Lemma big_intersection_greatest {A B} :
+    forall (f: A -> Ensemble B),
+    forall (bound: Ensemble B),
+      (forall a, Included _ bound (f a)) ->
+      Included _ bound (big_intersection f).
+  Proof.
+  intros f bound Hbound x H y.
+  apply (Hbound y x H).
+  Qed.
+
 End FAMILY.
 
 Module SET.
@@ -78,6 +98,18 @@ Module SET.
     apply Haseta. apply (Haset aset'); trivial.
   Qed.
 
+  Definition big_intersection {A} (S: Ensemble (Ensemble A)) : Ensemble A :=
+    fun a => forall aset, S aset -> aset a.
+
+  Lemma big_intersection_is_inf {A} :
+    forall (S: Ensemble (Ensemble A)), is_inf S (big_intersection S).
+  Proof.
+  intros S. split.
+  * intros aset Haset a Ha. apply (Ha aset Haset).
+  * intros aset Haset a Ha bset Hbset.
+    apply (Haset bset Hbset a Ha).
+  Qed.
+
 End SET.
 
 Instance SetJoinCompletePreLattice {A} :
@@ -85,4 +117,11 @@ Instance SetJoinCompletePreLattice {A} :
 Proof.
 intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.
+Defined.
+
+Instance SetMeetCompletePreLattice {A} :
+  MeetCompletePreLattice (Ensemble A) (Included A) := { }.
+Proof.
+intros P.
+exists (SET.big_intersection P). apply SET.big_intersection_is_inf.
 Defined.

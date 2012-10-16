@@ -1,11 +1,11 @@
-Require Import Lattice.
-
 Require Import Relations.
+Require Import Lattice.
+Require Import Kleene.
 
-Definition per A := { R : relation A | PER A R }.
+Definition per A := { R : relation A | PER R }.
 
-Definition toPER {A} (R: relation A) {E: PER A R} : per A :=
-  exist (PER A) R E.
+Definition toPER {A} (R: relation A) {E: PER R} : per A :=
+  exist PER R E.
 
 Definition coarser {A} (R1 R2: per A) :=
   forall x y, proj1_sig R2 x y -> proj1_sig R1 x y.
@@ -129,6 +129,60 @@ Module FAMILY.
   intros f bound Hbound x y H a. specialize (Hbound a x y H). trivial.
   Qed.
 
+  Lemma big_union_monotone_zero {A} (zero: per A) (f: per A -> per A):
+    monotone f ->
+    monotone (fun zero => FAMILY.big_union (fun n => n_iter f n zero)).
+  Proof.
+    intros Hf R1 R2 HR x y Hxy n.
+    unfold FAMILY.big_union in Hxy. simpl in Hxy.
+    apply (n_iter_monotone_zero f Hf n R1 R2 HR x y).
+    auto.
+  Qed.
+
+  Definition big_intersection {A B} (f: A -> per B) : per B.
+  Proof.
+  exists (clos_trans _ (fun x y => exists a, proj1_sig (f a) x y)).
+  constructor.
+  * intros x y H. induction H.
+    + apply t_step. destruct H as [a H].
+      exists a.
+      destruct (f a) as [R [HRefl Hsym]].
+      simpl in *. auto.
+    + apply (t_trans _ _ z y x); auto.
+  * intros x y z Hxy Hyz. apply (t_trans _ _ x y z); auto.
+  Defined.
+
+  Lemma big_intersection_lower_bound {A B} :
+    forall (f: A -> per B),
+    forall a, coarser (big_intersection f) (f a).
+  Proof.
+  intros f a x y H. apply t_step. eauto.
+  Qed.
+
+  Lemma big_intersection_greatest {A B} :
+    forall (f: A -> per B),
+    forall (bound: per B),
+      (forall a, coarser bound (f a)) ->
+      coarser bound (big_intersection f).
+  Proof.
+  intros f bound Hbound x y H.
+  simpl in H. induction H.
+  * destruct H as [a H]. apply (Hbound a _ _ H).
+  * destruct bound as [bound [Hrefl Hsym]]. simpl in *. eauto.
+  Qed.
+
+  Lemma big_intersection_monotone_zero {A} (zero: per A) (f: per A -> per A):
+    monotone f ->
+    monotone (fun zero => FAMILY.big_intersection (fun n => n_iter f n zero)).
+  Proof.
+    intros Hf R1 R2 HR x y Hxy.
+    unfold FAMILY.big_intersection in *. simpl in *.
+    induction Hxy.
+    * apply t_step. destruct H as [n H]. exists n.
+      apply (n_iter_monotone_zero f Hf n R1 R2 HR x y). trivial.
+    * apply (t_trans _ _ x y z); auto.
+  Qed.
+
 End FAMILY.
 
 Module SET.
@@ -158,6 +212,30 @@ Module SET.
     apply HR'xy. apply HR; trivial.
   Qed.
 
+  Definition big_intersection {A} (S: per A -> Prop) : per A.
+  Proof.
+  exists (clos_trans _ (fun x y => exists R, S R /\ proj1_sig R x y)).
+  constructor.
+  * intros x y Hxy. induction Hxy.
+    + apply t_step. destruct H as [R [HSR HRxy]].
+      exists R. split; trivial.
+      destruct R as [R [Hrefl Hsym]]. simpl in *. auto.
+    + apply (t_trans _ _ z y x); auto.
+  * intros x y z Hxy Hyz. apply (t_trans _ _ x y z); auto.
+  Defined.
+
+  Lemma big_intersection_is_inf {A} :
+    forall (S: per A -> Prop), is_inf S (big_intersection S).
+  Proof.
+  intros S. split.
+  * intros R HR x y Runion. apply t_step. eauto.
+  * intros R HR x y Hxy. unfold big_intersection in Hxy. simpl in Hxy.
+    induction Hxy.
+    + destruct H as [R' [HSR' HR'xy]].
+      apply (HR R' HSR' _ _ HR'xy).
+    + destruct R as [R [Hrefl Hsym]]. simpl in *. eauto.
+  Qed.
+
 End SET.
 
 Instance PERJoinCompletePreLattice {A} :
@@ -165,4 +243,11 @@ Instance PERJoinCompletePreLattice {A} :
 Proof.
 intros P.
 exists (SET.big_union P). apply SET.big_union_is_sup.
+Defined.
+
+Instance ERMeetCompletePreLattice {A} :
+  MeetCompletePreLattice (per A) coarser := { }.
+Proof.
+intros P.
+exists (SET.big_intersection P). apply SET.big_intersection_is_inf.
 Defined.
