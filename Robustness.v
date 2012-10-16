@@ -968,7 +968,9 @@ Qed.
 (** The limit is above any (countably) transfinite iteration of [obs_eq S]. *)
 Lemma limit_upper_bound_trans_chain {A} (S: sys A) (R: er A):
   forall o,
-    coarser (TransfiniteChains.trans_iter (obs_eq_ER S) o R) (limit_obs_eq S R).
+    coarser
+      (TransfiniteChains.Ascending.trans_iter (obs_eq_ER S) o R)
+      (limit_obs_eq S R).
 Proof.
 unfold limit_obs_eq.
 destruct
@@ -976,7 +978,7 @@ destruct
      R (obs_eq_ER S)
      (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
   as [fp [Hleq [Hfp Hlfp]]].
-apply TransfiniteChains.fixed_point_above_trans_iter;
+apply TransfiniteChains.Ascending.fixed_point_above_trans_iter;
   auto using obs_eq_monotone_ER.
 Qed.
 
