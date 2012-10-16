@@ -34,8 +34,8 @@ Require Import EquivClass.
 Require Import SetPredicates.
 Require Import Classical.
 Require Import KnasterTarski.
-Require Import Chains.
-Require Import TransfiniteChains.
+Require Chains.
+Require TransfiniteChains.
 
 (** * Systems. *)
 Record sys (state: Type) :=
@@ -938,7 +938,7 @@ Qed.
     that is above [R]. *)
 Definition limit_obs_eq {A} (S: sys A) (R: er A): er A :=
   let (inf, _) :=
-      generalized_tarski_least_fixed_point
+      Lfp.generalized_knaster_tarski
         R
         (obs_eq_ER S)
         (prop_2_1 S (proj1_sig R))
@@ -954,28 +954,30 @@ Hint Resolve limit_obs_eq_Equivalence.
 
 (** The limit is above any finite iteration of [obs_eq S]. *)
 Lemma limit_upper_bound_chain {A} (S: sys A) (R: er A):
-  forall n, coarser (n_iter (obs_eq_ER S) n R) (limit_obs_eq S R).
+  forall n, coarser (Chains.n_iter (obs_eq_ER S) n R) (limit_obs_eq S R).
 Proof.
 unfold limit_obs_eq.
 destruct
-  (generalized_tarski_least_fixed_point
+  (Lfp.generalized_knaster_tarski
      R (obs_eq_ER S)
      (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
   as [fp [Hleq [Hfp Hlfp]]].
-apply fixed_point_above_n_iter; auto using obs_eq_monotone_ER.
+apply Chains.fixed_point_above_n_iter; auto using obs_eq_monotone_ER.
 Qed.
 
 (** The limit is above any (countably) transfinite iteration of [obs_eq S]. *)
 Lemma limit_upper_bound_trans_chain {A} (S: sys A) (R: er A):
-  forall o, coarser (trans_iter (obs_eq_ER S) o R) (limit_obs_eq S R).
+  forall o,
+    coarser (TransfiniteChains.trans_iter (obs_eq_ER S) o R) (limit_obs_eq S R).
 Proof.
 unfold limit_obs_eq.
 destruct
-  (generalized_tarski_least_fixed_point
+  (Lfp.generalized_knaster_tarski
      R (obs_eq_ER S)
      (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
   as [fp [Hleq [Hfp Hlfp]]].
-apply fixed_point_above_trans_iter; auto using obs_eq_monotone_ER.
+apply TransfiniteChains.fixed_point_above_trans_iter;
+  auto using obs_eq_monotone_ER.
 Qed.
 
 (** Proposition 4.1. *)
@@ -988,7 +990,7 @@ unfold SP. transitivity (limit_obs_eq S R).
   + intros s s' Hss'. simpl in *. assumption.
   + unfold limit_obs_eq.
     destruct
-      (generalized_tarski_least_fixed_point
+      (Lfp.generalized_knaster_tarski
          R
          (obs_eq_ER S) (prop_2_1 S (proj1_sig R))
          (obs_eq_monotone_ER S))
@@ -1011,7 +1013,7 @@ transitivity (toER (obs_eq (sys_union S Attack) (proj1_sig (limit_obs_eq S R))))
   transitivity (limit_obs_eq S R).
   { unfold limit_obs_eq.
     destruct
-      (generalized_tarski_least_fixed_point
+      (Lfp.generalized_knaster_tarski
          R (obs_eq_ER S)
          (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
     as [? [? _]].

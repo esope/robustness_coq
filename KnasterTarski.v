@@ -4,28 +4,9 @@ Require Import SetLattice.
 Require Export Ordinals.
 Require Export Fixpoints.
 
-Theorem tarski_greatest_fixed_point {T leq}
-        `{L: JoinCompletePreLattice T leq} :
-  forall (f: T -> T),
-    monotone f ->
-    { fp |
-      is_fixed_point f fp
-      /\ (forall y, is_fixed_point f y -> leq y fp) }.
-Proof.
-intros f Hf.
-pose (P := fun t : T => leq t (f t)).
-destruct (join_complete P) as [sup [HUB HLUB]].
-exists sup.
-assert (leq sup (f sup)) as Hsup.
-{ apply HLUB. intros t Ht. transitivity (f t); trivial.
-  apply Hf. apply HUB; trivial.
-}
- deep_splits; trivial.
-* apply HUB. unfold P. apply Hf. trivial.
-* intros t Ht. apply HUB. unfold P. destruct Ht; assumption.
-Qed.
+Module Lfp.
 
-Theorem tarski_least_fixed_point {T leq}
+Theorem knaster_tarski {T leq}
         `{L: MeetCompletePreLattice T leq} :
   forall (f: T -> T),
     monotone f ->
@@ -46,7 +27,7 @@ assert (leq (f inf) inf) as Hinf.
 * intros t Ht. apply HLB. unfold P. destruct Ht; assumption.
 Qed.
 
-Theorem generalized_tarski_least_fixed_point {T leq}
+Theorem generalized_knaster_tarski {T leq}
         {O: PreOrder leq}
         {J: @JoinPreLattice T leq O}
         {M: @MeetCompletePreLattice T leq O} :
@@ -60,7 +41,7 @@ Theorem generalized_tarski_least_fixed_point {T leq}
 Proof.
 intros zero f Hzero Hf.
 pose proof
-     (tarski_least_fixed_point
+     (knaster_tarski
         (join_lift zero f)
         (join_lift_monotone zero f Hf)) as Hfp.
 destruct Hfp as [fp [Hfp Hlfp]].
@@ -68,3 +49,30 @@ exists fp.
 rewrite (lfp_join_lift zero f fp Hzero Hf).
 auto.
 Qed.
+
+End Lfp.
+
+Module Gfp.
+
+Theorem knaster_tarski {T leq}
+        `{L: JoinCompletePreLattice T leq} :
+  forall (f: T -> T),
+    monotone f ->
+    { fp |
+      is_fixed_point f fp
+      /\ (forall y, is_fixed_point f y -> leq y fp) }.
+Proof.
+intros f Hf.
+pose (P := fun t : T => leq t (f t)).
+destruct (join_complete P) as [sup [HUB HLUB]].
+exists sup.
+assert (leq sup (f sup)) as Hsup.
+{ apply HLUB. intros t Ht. transitivity (f t); trivial.
+  apply Hf. apply HUB; trivial.
+}
+ deep_splits; trivial.
+* apply HUB. unfold P. apply Hf. trivial.
+* intros t Ht. apply HUB. unfold P. destruct Ht; assumption.
+Qed.
+
+End Gfp.

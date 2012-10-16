@@ -1,6 +1,6 @@
 Require Import Relations.
 Require Import Lattice.
-Require Import Kleene.
+Require Import Chains.
 
 Definition per A := { R : relation A | PER R }.
 

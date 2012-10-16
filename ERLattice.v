@@ -1,6 +1,6 @@
 Require Import Relations.
 Require Export Lattice.
-Require Import Kleene.
+Require Import Chains.
 
 Definition er A := { R : relation A | Equivalence R }.
 
