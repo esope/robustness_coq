@@ -252,7 +252,7 @@ Lemma monotone_seq_sup_directed {T1 T2 leq1 leq2}
       `{L1: JoinPreLattice T1 leq1} `{L2: PreOrder T2 leq2} :
   forall (x: T1) (f : T1 -> T2),
     monotone f ->
-    sup_directed (fun x2 => exists x1, equiv x2 (f x1)).
+    sup_directed (fun x2 => exists x1, x2 = f x1).
 Proof.
 intros x f Hf. split.
 - exists (f x). exists x. reflexivity.
@@ -317,7 +317,7 @@ Qed.
 Definition sup_continuous {T1 leq1 T2 leq2}
            `{PreOrder T1 leq1} `{PreOrder T2 leq2} (f : T1 -> T2) :=
   forall P sup1, sup_directed P -> is_sup P sup1 ->
-  { sup2 | is_sup (im f P) sup2 /\ equiv sup2 (f sup1) }.
+  { sup2 | is_sup (im f P) sup2 /\ sup2 = f sup1 }.
 
 Lemma sup_continuous_monotone {T1 leq1 T2 leq2}
       `{PreOrder T1 leq1} `{PreOrder T2 leq2} :
@@ -396,7 +396,7 @@ Lemma monotone_seq_inf_directed {T1 T2 leq1 leq2}
       `{L1: MeetPreLattice T1 leq1} `{L2: PreOrder T2 leq2} :
   forall (x: T1) (f : T1 -> T2),
     monotone f ->
-    inf_directed (fun x2 => exists x1, equiv x2 (f x1)).
+    inf_directed (fun x2 => exists x1, x2 = f x1).
 Proof.
 intros x f Hf. split.
 - exists (f x). exists x. reflexivity.
@@ -565,7 +565,7 @@ specialize (H P inf Hdir Hinf).
 destruct H as [sup2 [Hsup2 Heq]].
 exists sup2. split.
 rewrite <- is_sup_flip_iff. assumption.
-rewrite <- equiv_flip_iff. assumption.
+subst. reflexivity.
 Qed.
 
 Lemma sup_continuous_flip_inv {T1 T2}
@@ -579,9 +579,9 @@ rewrite sup_directed_flip_iff in Hdir.
 rewrite is_sup_flip_iff in Hinf.
 specialize (H P inf Hdir Hinf).
 destruct H as [sup2 [Hsup2 Heq]].
-exists sup2. split.
-rewrite is_sup_flip_iff. assumption.
-rewrite equiv_flip_iff. assumption.
+exists (f inf). split; trivial.
+rewrite is_sup_flip_iff.
+apply (is_inf_equiv_compat _ sup2 (f inf)); trivial.
 Qed.
 
 Lemma inf_continuous_flip {T1 T2}
@@ -595,9 +595,9 @@ rewrite <- inf_directed_flip_iff in Hdir.
 rewrite <- is_inf_flip_iff in Hinf.
 specialize (H P inf Hdir Hinf).
 destruct H as [sup2 [Hsup2 Heq]].
-exists sup2. split.
-rewrite <- is_inf_flip_iff. assumption.
-rewrite <- equiv_flip_iff. assumption.
+exists (f inf). split; trivial.
+rewrite <- is_inf_flip_iff.
+apply (is_inf_equiv_compat _ sup2 (f inf)); trivial.
 Qed.
 
 Lemma inf_continuous_flip_inv {T1 T2}
@@ -613,7 +613,7 @@ specialize (H P inf Hdir Hinf).
 destruct H as [sup2 [Hsup2 Heq]].
 exists sup2. split.
 rewrite is_inf_flip_iff. assumption.
-rewrite equiv_flip_iff. assumption.
+subst. reflexivity.
 Qed.
 
 End Flip.
