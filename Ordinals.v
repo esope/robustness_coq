@@ -26,8 +26,6 @@ Fixpoint nat_to_ord (n: nat) : Ord :=
     | S n => S_Ord (nat_to_ord n)
   end.
 
-Definition ord_omega : Ord := lim_Ord nat_to_ord.
-
 (** * Ordering on countable ordinals. *)
 
 (** Predecessor. *)
@@ -228,32 +226,13 @@ Fixpoint ord_exp (a b: Ord) : Ord :=
     | lim_Ord bs => lim_Ord (fun n => ord_exp a (bs n))
   end.
 
-(** ** Some lemmas on ordinal arithmetic. *)
-(** *** Laws on addition. *)
+(** * Some well-known ordinals. *)
+Definition ord_omega : Ord := lim_Ord nat_to_ord.
 
-Lemma ord_plus_O_r : forall a, ord_plus a O_Ord = a.
-Proof.
-intro a. reflexivity.
-Qed.
+Fixpoint ord_tower (a: Ord) (n: nat) : Ord :=
+  match n with
+    | O => a
+    | S n => ord_exp (ord_tower a n) a
+  end.
 
-Lemma ord_plus_O_l : forall a, ord_plus O_Ord a = a.
-Proof.
-intro a. induction a; simpl; trivial.
-* congruence.
-* f_equal. extensionality n. trivial.
-Qed.
-
-Lemma ord_plus_S_r : forall a b, ord_plus a (S_Ord b) = S_Ord (ord_plus a b).
-Proof.
-intros a b. reflexivity.
-Qed.
-
-Lemma ord_plus_assoc :
-  forall a b c, ord_plus a (ord_plus b c) = ord_plus (ord_plus a b) c.
-Proof.
-intros a b c.
-generalize dependent b. generalize dependent a.
-induction c; simpl in *; intros a b; trivial.
-* congruence.
-* f_equal. extensionality n. trivial.
-Qed.
+Definition ord_epsilon0 : Ord := lim_Ord (ord_tower ord_omega).
