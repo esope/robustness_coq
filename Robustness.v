@@ -962,7 +962,7 @@ destruct
      R (obs_eq_ER S)
      (prop_2_1 S (proj1_sig R)) (obs_eq_monotone_ER S))
   as [fp [Hleq [Hfp Hlfp]]].
-apply Chains.fixed_point_above_n_iter; auto using obs_eq_monotone_ER.
+apply Chains.Ascending.fixed_point_above_n_iter; auto using obs_eq_monotone_ER.
 Qed.
 
 (** The limit is above any (countably) transfinite iteration of [obs_eq S]. *)

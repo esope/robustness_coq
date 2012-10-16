@@ -42,11 +42,11 @@ Proof.
 intros zero f Hzero Hf.
 pose proof
      (knaster_tarski
-        (join_lift zero f)
-        (join_lift_monotone zero f Hf)) as Hfp.
+        (Lfp.lift zero f)
+        (Lfp.lift_monotone zero f Hf)) as Hfp.
 destruct Hfp as [fp [Hfp Hlfp]].
 exists fp.
-rewrite (lfp_join_lift zero f fp Hzero Hf).
+rewrite (Lfp.lfp_iff zero f fp Hzero Hf).
 auto.
 Qed.
 

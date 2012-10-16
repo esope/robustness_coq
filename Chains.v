@@ -2,6 +2,7 @@ Require Import MyTactics.
 Require Export Lattice.
 Require Export NatLattice.
 
+(** * Iteration of a function over natural numbers. *)
 Fixpoint n_iter {T} (f: T -> T) (n : nat) (zero : T) : T :=
 match n with
 | O => zero
@@ -33,6 +34,9 @@ intros f Hf n. induction n.
 * unfold monotone; auto.
 * intros x y Hxy. repeat rewrite n_iter_correct. auto.
 Qed.
+
+(** * Ascending chains. *)
+Module Ascending.
 
 Lemma n_iter_ascending_1 {T leq} `{L: PreOrder T leq} :
   forall zero (f: T -> T),
@@ -178,7 +182,7 @@ fold g. exists (g nsup). split.
 * reflexivity.
 Qed.
 
-(** * Specialization of the above function to [zero = bottom]. *)
+(** ** Specialization of the above function to [zero = bottom]. *)
 Module Bottom.
 
 Lemma n_iter_monotone {T leq} `{L: PreOrder T leq} `{HasBottom T leq}:
@@ -254,3 +258,10 @@ apply iterated_fun_sup_continuous; auto; apply bottom_minimum.
 Qed.
 
 End Bottom.
+
+End Ascending.
+
+(** * Descending chains. *)
+Module Descending.
+(** TODO *)
+End Descending.

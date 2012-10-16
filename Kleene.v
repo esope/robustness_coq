@@ -1,6 +1,6 @@
 Require Import MyTactics.
 Require Import Lattice.
-Require Chains.
+Require Import Chains.
 
 (** * Kleene least fixed point theorems. *)
 Module Lfp.
@@ -12,15 +12,15 @@ Theorem generalized_kleene {T leq}
     leq zero (f zero) ->
     sup_continuous f ->
     { sup |
-      is_sup (Chains.iteration_chain zero f) sup
+      is_sup (Ascending.iteration_chain zero f) sup
       /\ is_fixed_point f sup
       /\ (forall y, leq zero y -> is_fixed_point f y -> leq sup y) }.
 Proof.
 intros zero f Hzero Hf_sup_continuous.
 assert (monotone f) as Hf_monotone by (apply sup_continuous_monotone; trivial).
-pose (chain := Chains.iteration_chain zero f).
+pose (chain := Ascending.iteration_chain zero f).
 pose (HchainSup_Directed :=
-        Chains.iteration_chain_sup_directed zero f Hzero Hf_monotone).
+        Ascending.iteration_chain_sup_directed zero f Hzero Hf_monotone).
 destruct (join_complete chain) as [sup Hsup].
 destruct (Hf_sup_continuous chain sup HchainSup_Directed Hsup)
   as [sup2 [Hsup2IsSup Hsup2Eq]].
@@ -28,12 +28,12 @@ exists sup. split; trivial. split.
 * split.
   - destruct Hsup2IsSup as [_ Hsup2L].
     rewrite <- Hsup2Eq. apply Hsup2L. destruct Hsup as [HsupUB _].
-    apply Chains.iteration_chain_upper_bound_im_f; auto.
+    apply Ascending.iteration_chain_upper_bound_im_f; auto.
   - destruct Hsup as [HsupUB HsupL]. apply HsupL.
-    apply Chains.iteration_chain_upper_bound_f; auto.
+    apply Ascending.iteration_chain_upper_bound_f; auto.
     apply HsupUB. exists 0. reflexivity.
 * intros y Hzeroy Hy. destruct Hsup as [HsupUB HsupL]. apply HsupL; trivial.
-  apply Chains.fixed_point_is_upper_bound_chain; trivial.
+  apply Ascending.fixed_point_is_upper_bound_chain; trivial.
 Qed.
 
 (** Kleene least fixed point theorem. *)
@@ -43,7 +43,7 @@ Theorem kleene {T leq}
   forall (f: T -> T),
     sup_continuous f ->
     { sup |
-      is_sup (Chains.iteration_chain bottom f) sup
+      is_sup (Ascending.iteration_chain bottom f) sup
       /\ is_fixed_point f sup
       /\ (forall y, is_fixed_point f y -> leq sup y) }.
 Proof.
