@@ -1,5 +1,5 @@
 Robust Declassification
-==========
+=======================
 
 Verification in Coq of the article
 [Robust Declassification](http://www.cis.upenn.edu/~stevez/papers/ZM01b.pdf)
@@ -7,12 +7,14 @@ by Zdancewic and Myers.
 
 Script compatible with [Coq 8.4](http://coq.inria.fr).
 
-# Requirements:
+Requirements:
+-------------
 
 * GNU make
 * [Coq 8.4](http://coq.inria.fr)
 
-# To build the files and generate the documentation:
+To build the files and generate the documentation:
+--------------------------------------------------
 
 Just type `make` and wait.
 The documentation is placed in the `html/` sub-directory.
@@ -21,7 +23,8 @@ The command `make check` runs `coqchk` on the development.
 
 The command `make wc` gives statistics about the development.
 
-# Contents of the files
+Contents of the files
+---------------------
 
 * `Chains.v`: Facts about ascending and descending finite chains.
 * `EquivClass.v`: Facts about equivalence classes.
