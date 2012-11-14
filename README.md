@@ -18,8 +18,9 @@ To build the files and generate the documentation:
 
 Just type `make` and wait.
 The documentation is placed in the `html/` sub-directory.
+You might want to take a look at the files `html/toc.html` and `html/toc.svg`.
 
-The command `make check` runs `coqchk` on the development.
+The command `make validate` runs `coqchk` on the development.
 
 The command `make wc` gives statistics about the development.
 
