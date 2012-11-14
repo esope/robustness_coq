@@ -5,3 +5,5 @@ syntax: glob
 Makefile.coq
 html
 *~
+ocamldot/ocamldot.{ml,cmi,cmo}
+ocamldot/ocamldot

@@ -10,11 +10,12 @@ MODULES := MyTactics MyList \
 
 VS 	:= $(MODULES:%=%.v)
 
-COQDOCFLAGS="--light --interpolate --utf8"
+COQDOCFLAGS="--light --interpolate --utf8 --lib-subtitles"
+COQCHKFLAGS="-admit Omega -silent -o"
 
-.PHONY: coq doc clean
+.PHONY: coq doc graph clean
 
-all: coq doc
+all: coq_and_doc
 
 coq: Makefile.coq
 	@echo "*******************************************************"
@@ -22,30 +23,45 @@ coq: Makefile.coq
 	@echo "*******************************************************"
 	$(MAKE) -f Makefile.coq
 
-Makefile.coq: Makefile $(VS:%=%)
+Makefile.coq: Makefile
 	@echo "*******************************************************"
 	@echo "Generating Makefile..."
 	@echo "*******************************************************"
-	coq_makefile $(VS) COQDOCFLAGS = $(COQDOCFLAGS) -o Makefile.coq
+	coq_makefile $(VS) COQDOCFLAGS = $(COQDOCFLAGS) COQCHKFLAGS = $(COQCHKFLAGS) -install none -opt -o Makefile.coq
 
 clean: Makefile.coq
 	@echo "*******************************************************"
 	@echo "Cleaning..."
 	@echo "*******************************************************"
 	$(MAKE) -f Makefile.coq clean
-	rm -f Makefile.coq .depend *~ *.glob *.v.d ^.vo
+	$(MAKE) -C ocamldot clean
+	rm -f Makefile.coq .depend *~ *.glob *.v.d *.vo
+
+coq_and_doc: coq
+	$(MAKE) doc
 
 doc:
 	@echo "*******************************************************"
 	@echo "Building documentation..."
 	@echo "*******************************************************"
 	$(MAKE) -f Makefile.coq html
+	cp coqdoc.css html/
+	$(MAKE) graph
 
-check:	coq
+graph:	html/toc.svg
+
+html/toc.svg:	ocamldot/ocamldot $(MODULES:%=%.v.d)
+	cat *.v.d | ocamldot/ocamldot -urls '.html' > html/graph.dot
+	dot -Tsvg -o html/toc.svg html/graph.dot
+
+ocamldot/ocamldot:
+	$(MAKE) -C ocamldot
+
+validate:	coq
 	@echo "*******************************************************"
-	@echo "Checking the Coq development. This might take time..."
+	@echo "Validating the Coq development. This might take time..."
 	@echo "*******************************************************"
-	coqchk -silent -o -m $(MODULES)
+	$(MAKE) -f Makefile.coq validate
 
 wc:
 	coqwc -p $(VS)
