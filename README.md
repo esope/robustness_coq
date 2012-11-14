@@ -11,6 +11,7 @@ Requirements:
 -------------
 
 * GNU make
+* [OCaml](http://caml.inria.fr)
 * [Coq 8.4](http://coq.inria.fr)
 
 To build the files and generate the documentation:
